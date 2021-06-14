@@ -1,0 +1,6 @@
+(dirs :standard \ ignored)
+(executable
+	(name okra)
+	(libraries omd str)
+)
+
