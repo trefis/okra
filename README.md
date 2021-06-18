@@ -17,6 +17,20 @@ If there are warnings that are not expected (i.e not about the "OKR updates" sec
 # cat okr-report1.md okr-report2.md | ./fmt.sh | okra | less
 ```
 
+## Report format
+
+The expected report format:
+
+```
+# Project
+
+## Objective
+
+- My KR (KR ID)
+	- @engineer1 (1 day), @engineer2 (2 days)
+	- work item 1
+	- work item 2
+```
 
 ## Fixing warnings
 
