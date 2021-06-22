@@ -27,10 +27,13 @@ The expected report format:
 ## Objective
 
 - My KR (KR ID)
-	- @engineer1 (1 day), @engineer2 (2 days)
-	- work item 1
-	- work item 2
+  - @engineer1 (1 day), @engineer2 (2 days)
+  - work item 1
+    - subitem
+  - work item 2
 ```
+
+The tool will attempt to group data by project, objective and KR if these match.
 
 ## Fixing warnings
 
