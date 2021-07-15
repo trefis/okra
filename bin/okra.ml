@@ -93,7 +93,8 @@ let string_of_okr okr =
     | KR_title s -> Printf.sprintf "KR title: %s" s
     | Work w -> String.concat ", " (List.map (fun e -> Printf.sprintf "W: %s" e) w)
     | Time _ -> "Time: <not shown>"
-    | Counter c -> Printf.sprintf "Cnt: %d" c) okr in
+    | Counter c -> Printf.sprintf "Cnt: %d" c) okr
+  in
   String.concat ", " l
 
 let store_result store okr_list =
@@ -137,7 +138,7 @@ let rec inline {il_desc; _} =
 let rec block {bl_desc; _} =
   match bl_desc with
   | Paragraph x -> inline x @ ["\n"]
-  | List (_, _, bls) -> List.concat (List.map (fun xs -> "\t- " :: List.concat(List.map block xs)) bls)
+  | List (_, _, bls) -> List.concat (List.map (fun xs -> "        - " :: List.concat(List.map block xs)) bls)
   | Blockquote x -> "> " :: List.concat (List.map block x)
   | Thematic_break -> ["*thematic-break-ignored*"];
   | Heading (level, text) -> String.make level '#' :: inline text @ ["\n"]
