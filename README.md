@@ -1,5 +1,8 @@
 OKR report aggregation tool
 =======
+
+Prototype aggregation tool for markdown-based OKR reports. This is work in progress.
+
 ## Running it
 
 The code reads data from stdin, aggregates per KR and outputs the result.
