@@ -45,10 +45,8 @@ let tim_re = Str.regexp "@\\([a-zA-Z0-9]+\\) (\\([0-9.]+\\) days?)$"
 let tim_split_re = Str.regexp " ?, ?"
 (* Split on , surrounded by zero or more whitespace *)
 
-let check_valid_time_block tb =
-  match tb with
-  | [ { bl_desc = Paragraph { il_desc = Text s; _ }; _ } ] ->
-      String.get (String.trim s) 0 = '@'
+let check_valid_time_block = function
+  | [ Paragraph (_, Text (_, s)) ] -> String.get (String.trim s) 0 = '@'
   | _ -> false
 
 let is_suffix suffix s =
@@ -143,45 +141,43 @@ let store_result store okr_list =
       | None -> Hashtbl.add store.okr_ht key [ okr_list ]
       | Some x -> Hashtbl.replace store.okr_ht key (x @ [ okr_list ]))
 
-let rec inline { il_desc; _ } =
-  match il_desc with
-  | Concat xs -> List.concat (List.map inline xs)
-  | Text s -> [ s ]
-  | Emph s -> "*" :: inline s @ [ "*" ]
-  | Strong s -> "**" :: inline s @ [ "**" ]
-  | Code s -> [ "`"; s; "`" ]
-  | Hard_break -> [ "\n\n" ]
-  | Soft_break -> [ "\n" ]
-  | Link { label; destination; _ } ->
+let rec inline = function
+  | Concat (_, xs) -> List.concat (List.map inline xs)
+  | Text (_, s) -> [ s ]
+  | Emph (_, s) -> "*" :: inline s @ [ "*" ]
+  | Strong (_, s) -> "**" :: inline s @ [ "**" ]
+  | Code (_, s) -> [ "`"; s; "`" ]
+  | Hard_break _ -> [ "\n\n" ]
+  | Soft_break _ -> [ "\n" ]
+  | Link (_, { label; destination; _ }) ->
       "[" :: inline label @ [ "]("; destination; ")" ]
   | Html _ -> [ "**html-ignored**" ]
   | Image _ -> [ "**img ignored**" ]
 
-let rec block { bl_desc; _ } =
-  match bl_desc with
-  | Paragraph x -> inline x @ [ "\n" ]
-  | List (_, _, bls) ->
+let rec block = function
+  | Paragraph (_, x) -> inline x @ [ "\n" ]
+  | List (_, _, _, bls) ->
       List.concat
         (List.map
            (fun xs -> "        - " :: List.concat (List.map block xs))
            bls)
-  | Blockquote x -> "> " :: List.concat (List.map block x)
-  | Thematic_break -> [ "*thematic-break-ignored*" ]
-  | Heading (level, text) -> String.make level '#' :: inline text @ [ "\n" ]
-  | Code_block (info, _) -> [ "```"; info; "```" ]
+  | Blockquote (_, x) -> "> " :: List.concat (List.map block x)
+  | Thematic_break _ -> [ "*thematic-break-ignored*" ]
+  | Heading (_, level, text) -> String.make level '#' :: inline text @ [ "\n" ]
+  | Code_block (_, info, _) -> [ "```"; info; "```" ]
   | Html_block _ -> [ "*html-ignored*" ]
   | Definition_list _ -> [ "*def-list-ignored*" ]
 
-let block_okr { bl_desc; _ } =
-  match bl_desc with
-  | Paragraph x -> (
+let block_okr = function
+  | Paragraph (_, x) -> (
       let okr_title = String.trim (String.concat "" (inline x)) in
       match parse_okr_title okr_title with
       | None -> [ KR okr_title; KR_title okr_title ]
       | Some (title, id) -> [ KR okr_title; KR_title title; KR_id id ])
-  | List (_, _, bls) ->
+  | List (_, _, _, bls) ->
       if List.length (List.filter check_valid_time_block bls) > 1 then
-        (* This is fatal, as we can miss tracked time if this occurs -- time should always be summarised in first entry *)
+        (* This is fatal, as we can miss tracked time if this occurs
+            -- time should always be summarised in first entry *)
         raise (Multiple_time_entries "Multiple time entries found")
       else ();
       let tb = List.hd bls in
@@ -244,7 +240,9 @@ let print_okrs okr_list =
                     | false -> ()
                     | true ->
                         let user = Str.matched_group 1 s in
-                        (* todo: let this conversion raise an exception, would be nice to exit more cleanly, but it should be fatal *)
+                        (* todo: let this conversion raise an
+                           exception, would be nice to exit more
+                           cleanly, but it should be fatal *)
                         let days = Float.of_string (Str.matched_group 2 s) in
                         (*Printf.printf "-  + @%s (%.1f days)\n" user days;*)
                         Hashtbl.add ht_t user days)
@@ -280,58 +278,63 @@ let print_okrs okr_list =
   in
   ()
 
-let current_o = ref "None"
-let current_proj = ref "Unknown"
-let current_counter = ref 0
+type state = {
+  mutable current_o : string;
+  mutable current_proj : string;
+  mutable current_counter : int;
+}
 
-let process_okr_block ht hd tl =
-  (* peek at each block in list, consume if match - otherwise return full list for regular processing*)
-  let { bl_desc; _ } = hd in
-  match bl_desc with
-  | Heading (_, { il_desc; _ }) ->
+let init () =
+  { current_o = "None"; current_proj = "Unknown"; current_counter = 0 }
+
+let process_okr_block t ht hd tl =
+  (* peek at each block in list, consume if match - otherwise return
+     full list for regular processing*)
+  match hd with
+  | Heading (_, _, il) ->
       let title =
-        match il_desc with
+        match il with
         (* Display header with level, strip lead from objectives if present *)
-        | Text s -> strip_obj_lead s
+        | Text (_, s) -> strip_obj_lead s
         | _ -> "None"
       in
-      (* remember last object title seen - works if Os have not been renamed in a set of files *)
-      current_o := title;
+      (* remember last object title seen - works if Os have not been
+         renamed in a set of files *)
+      t.current_o <- title;
       tl
-  | List (_, _, bls) ->
+  | List (_, _, _, bls) ->
       let _ =
         List.map
           (fun xs ->
             let okr_list = List.concat (List.map block_okr xs) in
             (*if List.length okr_list = 3 then
-                okr_list
-              else (* return empty list if it doesn't include Time/Work/OKR *)
-                okr_list) bls in*)
+                 okr_list
+               else (* return empty list if it doesn't include Time/Work/OKR *)
+                 okr_list) bls in*)
             store_result ht
-              ([ Proj !current_proj; O !current_o; Counter !current_counter ]
+              ([ Proj t.current_proj; O t.current_o; Counter t.current_counter ]
               @ okr_list))
           bls
       in
-      current_counter := !current_counter + 1;
+      t.current_counter <- t.current_counter + 1;
       tl
   | _ -> tl
 
-let process_entry ht hd tl =
+let process_entry t ht hd tl =
   (* Find project level headers *)
-  let { bl_desc; _ } = hd in
-  (match bl_desc with
-  | Heading (level, { il_desc; _ }) -> (
-      match (level, il_desc) with
+  (match hd with
+  | Heading (_, level, il) -> (
+      match (level, il) with
       (* Display header with level, strip lead from objectives if present *)
-      | 1, Text s -> current_proj := s
+      | 1, Text (_, s) -> t.current_proj <- s
       | _, _ -> ())
   | _ -> ());
-  process_okr_block ht hd tl
+  process_okr_block t ht hd tl
 
-let rec process ht ast =
+let rec process t ht ast =
   match ast with
-  | [ hd ] -> process ht (process_entry ht hd [])
-  | hd :: tl -> process ht (process_entry ht hd tl)
+  | [ hd ] -> process t ht (process_entry t ht hd [])
+  | hd :: tl -> process t ht (process_entry t ht hd tl)
   | [] -> ()
 
 let has_proj okr_list proj =
@@ -363,8 +366,10 @@ let okr_entry_of_okr_list okr_list =
   let okr_kr_id = ref "" in
   let okr_counter = ref 0 in
 
-  (* Assume each item in list has the same O/KR/Proj, so just parse the first one *)
-  (* todo we could sanity check here by verifying that every entry has the same KR/O *)
+  (* Assume each item in list has the same O/KR/Proj, so just parse
+     the first one *)
+  (* todo we could sanity check here by verifying that every entry has
+     the same KR/O *)
   List.iter
     (fun el ->
       match el with
@@ -376,7 +381,8 @@ let okr_entry_of_okr_list okr_list =
       | _ -> ())
     (List.hd okr_list);
 
-  (* Find all the time records and store in hashtbl keyed by engineer + original *)
+  (* Find all the time records and store in hashtbl keyed by engineer
+     + original *)
   let okr_time_entries = ref [] in
   let ht_t = Hashtbl.create 7 in
   List.iter
@@ -399,7 +405,9 @@ let okr_entry_of_okr_list okr_list =
                   | false -> ()
                   | true ->
                       let user = Str.matched_group 1 s in
-                      (* todo: let this conversion raise an exception, would be nice to exit more cleanly, but it should be fatal *)
+                      (* todo: let this conversion raise an exception,
+                         would be nice to exit more cleanly, but it
+                         should be fatal *)
                       let days = Float.of_string (Str.matched_group 2 s) in
                       Hashtbl.add ht_t user days)
                 t_split
@@ -447,7 +455,8 @@ let okr_entry_of_okr_list okr_list =
 let () =
   let store = { okr_ht = Hashtbl.create 100 } in
   let md = Omd.of_channel stdin in
-  process store md;
+  let state = init () in
+  process state store md;
 
   (*Hashtbl.iter (fun _ v ->
     print_okrs v) store.okr_ht*)
@@ -460,7 +469,8 @@ let () =
       (* compare on project first *)
       if compare a.obj b.obj = 0 then
         (* then obj if proj equal *)
-        (* Check if KR IDs are the same --if one of the KR IDs are blank, compare on title instead *)
+        (* Check if KR IDs are the same --if one of the KR IDs are
+           blank, compare on title instead *)
         let compare_kr_id =
           if
             a.kr_id = ""
