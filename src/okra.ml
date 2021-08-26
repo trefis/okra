@@ -1,14 +1,34 @@
+(*
+ * Copyright (c) 2021 Magnus Skjegstad
+ * Copyright (c) 2021 Thomas Gazagnaire <thomas@gazagnaire.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *)
+
 open Omd
+
+let hashtbl_keys ht =
+  List.sort_uniq String.compare (List.of_seq (Hashtbl.to_seq_keys ht))
 
 exception No_time_found of string
 exception Multiple_time_entries of string
 exception KR_title_id_mismatch of string
 
 (* Type for sanitized post-ast version *)
-type okr_entry = {
+type t = {
   counter : int;
-  proj : string;
-  obj : string;
+  project : string;
+  objective : string;
   kr_title : string;
   kr_id : string;
   time_entries : string list;
@@ -16,21 +36,134 @@ type okr_entry = {
   work : string list;
 }
 
-(* Types for parsing the AST *)
-type okr_t =
-  | O of string (* Objective name, without lead *)
-  | Proj of string (* Project name / pillar *)
-  | KR of string (* Full name of KR, with ID *)
-  | KR_id of string (* ID of KR *)
-  | KR_title of string (* Title without ID, tech lead *)
-  | Work of string list (* List of work items *)
-  | Time of string (* Time entry *)
-  | Counter of int
-(* Increasing counter to be able to sort multiple entries by time *)
+let compare a b =
+  if String.compare a.project b.project = 0 then
+    (* compare on project first *)
+    if String.compare a.objective b.objective = 0 then
+      (* then obj if proj equal *)
+      (* Check if KR IDs are the same --if one of the KR IDs are
+         blank, compare on title instead *)
+      let compare_kr_id =
+        if
+          a.kr_id = ""
+          || b.kr_id = ""
+          || a.kr_id = "NEW KR"
+          || b.kr_id = "NEW KR"
+          || a.kr_id = "NEW OKR"
+          || b.kr_id = "NEW OKR"
+        then String.compare a.kr_title b.kr_title
+        else String.compare a.kr_id b.kr_id
+      in
+      (* If KRs match, check counter *)
+      if compare_kr_id = 0 then compare a.counter b.counter else compare_kr_id
+    else String.compare a.objective b.objective
+  else String.compare a.project b.project
 
-type okr_ht = (string, okr_t list list) Hashtbl.t
-type store_ht = { okr_ht : okr_ht }
-(* Todo this doesn't have to be two types okr_ht/store_ht anymore *)
+module Weekly = struct
+  (* Types for parsing the AST *)
+  type elt =
+    | O of string (* Objective name, without lead *)
+    | Proj of string (* Project name / pillar *)
+    | KR of string (* Full name of KR, with ID *)
+    | KR_id of string (* ID of KR *)
+    | KR_title of string (* Title without ID, tech lead *)
+    | Work of string list (* List of work items *)
+    | Time of string (* Time entry *)
+    | Counter of int
+  (* Increasing counter to be able to sort multiple entries by time *)
+
+  type t = elt list list
+  type table = (string, t) Hashtbl.t
+
+  let has_proj okr_list proj =
+    let m =
+      List.find_all
+        (fun f ->
+          match f with
+          | Proj s ->
+              Printf.printf "%s=%s\n" s proj;
+              String.compare s proj = 0
+          | _ -> false)
+        okr_list
+    in
+    List.length m > 0
+
+  let filter okr_ll proj = List.filter (fun f -> has_proj f proj) okr_ll
+
+  let pp ppf okr_list =
+    let pf fmt = Fmt.pf ppf fmt in
+    (* Just print O/KR from first item *)
+    List.iter
+      (fun el ->
+        match el with
+        | Proj s -> pf "\n# %s\n" s
+        | O s -> pf "\n## %s\n" s
+        | KR s -> pf "\n- %s\n" s
+        | _ -> ())
+      (List.hd okr_list);
+    (* Just find time *)
+    let ht_t = Hashtbl.create 7 in
+    let _ =
+      List.map
+        (fun elements ->
+          List.iter
+            (fun el ->
+              match el with
+              | Time t_ ->
+                  pf "    - + %s" t_;
+                  (* todo this shouldn't happen when printing, but earlier *)
+                  (* split on @, then extract first word and any float after *)
+                  let t_split = Str.split (Str.regexp "@+") t_ in
+                  List.iter
+                    (fun s ->
+                      match
+                        Str.string_match
+                          (Str.regexp "^\\([a-zA-Z0-9-]+\\)[^0-9]+\\([0-9.]+\\)")
+                          s 0
+                      with
+                      | false -> ()
+                      | true ->
+                          let user = Str.matched_group 1 s in
+                          (* todo: let this conversion raise an
+                             exception, would be nice to exit more
+                             cleanly, but it should be fatal *)
+                          let days = Float.of_string (Str.matched_group 2 s) in
+                          (*pf "-  + @%s (%.1f days)\n" user days;*)
+                          Hashtbl.add ht_t user days)
+                    t_split
+              | _ -> ())
+            elements)
+        okr_list
+    in
+    (* Sum and print time *)
+    pf "    - = ";
+    List.iter
+      (fun key ->
+        let sum =
+          List.fold_left
+            (fun a b -> Float.add a b)
+            0.0
+            (Hashtbl.find_all ht_t key)
+        in
+        pf "@%s (%.2f days) " key sum)
+      (hashtbl_keys ht_t);
+    pf "\n";
+    (* Just print work *)
+    let _ =
+      List.map
+        (fun elements ->
+          List.iter
+            (fun el ->
+              match el with
+              | Work w -> List.iter (fun w_ -> pf "    - %s" w_) w
+              | _ -> ())
+            elements)
+        okr_list
+    in
+    ()
+end
+
+open Weekly
 
 let okr_re = Str.regexp "\\(.+\\) (\\([a-zA-Z]+[0-9]+\\))$"
 (* Header: This is a KR (KR12) *)
@@ -39,11 +172,6 @@ let obj_re = Str.regexp "\\(.+\\) (\\([a-zA-Z ]+\\))$"
 (* Header: This is an objective (Tech lead name) *)
 
 let new_okr_re = obj_re
-let tim_re = Str.regexp "@\\([a-zA-Z0-9]+\\) (\\([0-9.]+\\) days?)$"
-(* @[github-handle] ([float] day/days) *)
-
-let tim_split_re = Str.regexp " ?, ?"
-(* Split on , surrounded by zero or more whitespace *)
 
 let check_valid_time_block = function
   | [ Paragraph (_, Text (_, s)) ] -> String.get (String.trim s) 0 = '@'
@@ -73,47 +201,21 @@ let parse_okr_title s =
           ( String.trim (Str.matched_group 1 s),
             String.trim (Str.matched_group 2 s) )
 
-let hashtbl_keys ht =
-  List.sort_uniq compare (List.of_seq (Hashtbl.to_seq_keys ht))
-
-let is_prefix prefix s =
-  String.length s >= String.length prefix
-  &&
-  let prefix = String.uppercase_ascii prefix in
-  let s = String.uppercase_ascii s in
-  String.equal prefix (String.sub s 0 (String.length prefix))
-
-let get_proj_list store =
-  (* iterate over ht *)
-  let keys = hashtbl_keys store.okr_ht in
-  List.sort_uniq compare
-    (List.concat
-       (List.map
-          (fun key ->
-            let okr_list = List.concat (Hashtbl.find store.okr_ht key) in
-            List.concat
-              (List.map
-                 (fun el -> match el with Proj s -> [ s ] | _ -> [])
-                 okr_list))
-          keys))
-
-let string_of_okr okr =
-  let l =
-    List.map
-      (fun xs ->
-        match xs with
-        | Proj s -> Printf.sprintf "P: %s" s
-        | O s -> Printf.sprintf "O: %s" s
-        | KR s -> Printf.sprintf "KR: %s" s
-        | KR_id s -> Printf.sprintf "KR id: %s" s
-        | KR_title s -> Printf.sprintf "KR title: %s" s
-        | Work w ->
-            String.concat ", " (List.map (fun e -> Printf.sprintf "W: %s" e) w)
-        | Time _ -> "Time: <not shown>"
-        | Counter c -> Printf.sprintf "Cnt: %d" c)
-      okr
+let pp ppf okr =
+  let pf fmt = Fmt.pf ppf fmt in
+  let pp ppf = function
+    | Proj s -> pf "P: %s" s
+    | O s -> pf "O: %s" s
+    | KR s -> pf "KR: %s" s
+    | KR_id s -> pf "KR id: %s" s
+    | KR_title s -> pf "KR title: %s" s
+    | Work w ->
+        let pp ppf e = Fmt.pf ppf "W: %s" e in
+        Fmt.list ~sep:(Fmt.unit ", ") pp ppf w
+    | Time _ -> pf "Time: <not shown>"
+    | Counter c -> pf "Cnt: %d" c
   in
-  String.concat ", " l
+  Fmt.list ~sep:(Fmt.unit ", ") pp ppf okr
 
 let store_result store okr_list =
   let key1 =
@@ -135,11 +237,11 @@ let store_result store okr_list =
     | Some _ -> true
   in
   match has_time with
-  | false -> Printf.printf "WARNING: Ignored %s\n" (string_of_okr okr_list)
+  | false -> Fmt.pr "WARNING: Ignored %a\n" pp okr_list
   | true -> (
-      match Hashtbl.find_opt store.okr_ht key with
-      | None -> Hashtbl.add store.okr_ht key [ okr_list ]
-      | Some x -> Hashtbl.replace store.okr_ht key (x @ [ okr_list ]))
+      match Hashtbl.find_opt store key with
+      | None -> Hashtbl.add store key [ okr_list ]
+      | Some x -> Hashtbl.replace store key (x @ [ okr_list ]))
 
 let rec inline = function
   | Concat (_, xs) -> List.concat (List.map inline xs)
@@ -197,86 +299,10 @@ let block_okr = function
       else []
   | _ -> []
 
-let parse_obj s =
-  match Str.string_match obj_re s 0 with
-  | false -> None
-  | true -> Some (Str.matched_group 1 s, Str.matched_group 2 s)
-
 let strip_obj_lead s =
   match Str.string_match obj_re (String.trim s) 0 with
   | false -> s
   | true -> Str.matched_group 1 s
-
-let print_okrs okr_list =
-  (* Just print O/KR from first item *)
-  List.iter
-    (fun el ->
-      match el with
-      | Proj s -> Printf.printf "\n# %s\n" s
-      | O s -> Printf.printf "\n## %s\n" s
-      | KR s -> Printf.printf "\n- %s\n" s
-      | _ -> ())
-    (List.hd okr_list);
-  (* Just find time *)
-  let ht_t = Hashtbl.create 7 in
-  let _ =
-    List.map
-      (fun elements ->
-        List.iter
-          (fun el ->
-            match el with
-            | Time t_ ->
-                Printf.printf "    - + %s" t_;
-                (* todo this shouldn't happen when printing, but earlier *)
-                (* split on @, then extract first word and any float after *)
-                let t_split = Str.split (Str.regexp "@+") t_ in
-                List.iter
-                  (fun s ->
-                    match
-                      Str.string_match
-                        (Str.regexp "^\\([a-zA-Z0-9-]+\\)[^0-9]+\\([0-9.]+\\)")
-                        s 0
-                    with
-                    | false -> ()
-                    | true ->
-                        let user = Str.matched_group 1 s in
-                        (* todo: let this conversion raise an
-                           exception, would be nice to exit more
-                           cleanly, but it should be fatal *)
-                        let days = Float.of_string (Str.matched_group 2 s) in
-                        (*Printf.printf "-  + @%s (%.1f days)\n" user days;*)
-                        Hashtbl.add ht_t user days)
-                  t_split
-            | _ -> ())
-          elements)
-      okr_list
-  in
-  (* Sum and print time *)
-  Printf.printf "    - = ";
-  List.iter
-    (fun key ->
-      let sum =
-        List.fold_left
-          (fun a b -> Float.add a b)
-          0.0
-          (Hashtbl.find_all ht_t key)
-      in
-      Printf.printf "@%s (%.2f days) " key sum)
-    (hashtbl_keys ht_t);
-  Printf.printf "\n";
-  (* Just print work *)
-  let _ =
-    List.map
-      (fun elements ->
-        List.iter
-          (fun el ->
-            match el with
-            | Work w -> List.iter (fun w_ -> Printf.printf "    - %s" w_) w
-            | _ -> ())
-          elements)
-      okr_list
-  in
-  ()
 
 type state = {
   mutable current_o : string;
@@ -337,22 +363,13 @@ let rec process t ht ast =
   | hd :: tl -> process t ht (process_entry t ht hd tl)
   | [] -> ()
 
-let has_proj okr_list proj =
-  let m =
-    List.find_all
-      (fun f ->
-        match f with
-        | Proj s ->
-            Printf.printf "%s=%s\n" s proj;
-            compare s proj = 0
-        | _ -> false)
-      okr_list
-  in
-  List.length m > 0
+let process ast =
+  let state = init () in
+  let store = Hashtbl.create 100 in
+  process state store ast;
+  store
 
-let filter_proj okr_ll proj = List.filter (fun f -> has_proj f proj) okr_ll
-
-let okr_entry_of_okr_list okr_list =
+let of_weekly okr_list =
   (* This function expects a list of entries for the same KR, typically
      corresponding to a set of weekly reports. Each list item will consist of
      a list of okr_t items, which provides time, work items etc for this entry.
@@ -443,8 +460,8 @@ let okr_entry_of_okr_list okr_list =
   (* Construct final entry *)
   {
     counter = !okr_counter;
-    proj = !okr_proj;
-    obj = !okr_obj;
+    project = !okr_proj;
+    objective = !okr_obj;
     kr_title = !okr_kr_title;
     kr_id = !okr_kr_id;
     time_entries = !okr_time_entries;
@@ -452,65 +469,36 @@ let okr_entry_of_okr_list okr_list =
     work;
   }
 
-let () =
-  let store = { okr_ht = Hashtbl.create 100 } in
-  let md = Omd.of_channel stdin in
-  let state = init () in
-  process state store md;
+module Unused = struct
+  let _tim_re = Str.regexp "@\\([a-zA-Z0-9]+\\) (\\([0-9.]+\\) days?)$"
+  (* @[github-handle] ([float] day/days) *)
 
-  (*Hashtbl.iter (fun _ v ->
-    print_okrs v) store.okr_ht*)
-  let v =
-    List.map okr_entry_of_okr_list
-      (List.of_seq (Hashtbl.to_seq_values store.okr_ht))
-  in
-  let okr_compare a b =
-    if compare a.proj b.proj = 0 then
-      (* compare on project first *)
-      if compare a.obj b.obj = 0 then
-        (* then obj if proj equal *)
-        (* Check if KR IDs are the same --if one of the KR IDs are
-           blank, compare on title instead *)
-        let compare_kr_id =
-          if
-            a.kr_id = ""
-            || b.kr_id = ""
-            || a.kr_id = "NEW KR"
-            || b.kr_id = "NEW KR"
-            || a.kr_id = "NEW OKR"
-            || b.kr_id = "NEW OKR"
-          then compare a.kr_title b.kr_title
-          else compare a.kr_id b.kr_id
-        in
-        (* If KRs match, check counter *)
-        if compare_kr_id = 0 then compare a.counter b.counter else compare_kr_id
-      else compare a.obj b.obj
-    else compare a.proj b.proj
-  in
-  let c_proj = ref "" in
-  let c_obj = ref "" in
-  let c_kr_id = ref "" in
-  let c_kr_title = ref "" in
-  List.iter
-    (fun e ->
-      if e.proj <> !c_proj then (
-        Printf.printf "\n# %s\n" e.proj;
-        c_proj := e.proj)
-      else ();
-      if e.obj <> !c_obj then (
-        Printf.printf "\n## %s\n" e.obj;
-        c_obj := e.obj)
-      else ();
-      if e.kr_id <> !c_kr_id || e.kr_title <> !c_kr_title then (
-        Printf.printf "\n- %s (%s)\n" e.kr_title e.kr_id;
-        c_kr_title := e.kr_title;
-        c_kr_id := e.kr_id)
-      else ();
-      List.iter (fun s -> Printf.printf "    - + %s" s) e.time_entries;
-      Printf.printf "    - = ";
-      Hashtbl.iter
-        (fun s v -> Printf.printf "@%s (%.2f days) " s v)
-        e.time_per_engineer;
-      Printf.printf "\n";
-      List.iter (fun s -> Printf.printf "    - %s" s) e.work)
-    (List.sort okr_compare v)
+  let _tim_split_re = Str.regexp " ?, ?"
+  (* Split on , surrounded by zero or more whitespace *)
+
+  let _is_prefix prefix s =
+    String.length s >= String.length prefix
+    &&
+    let prefix = String.uppercase_ascii prefix in
+    let s = String.uppercase_ascii s in
+    String.equal prefix (String.sub s 0 (String.length prefix))
+
+  let _get_proj_list store =
+    (* iterate over ht *)
+    let keys = hashtbl_keys store in
+    List.sort_uniq String.compare
+      (List.concat
+         (List.map
+            (fun key ->
+              let okr_list = List.concat (Hashtbl.find store key) in
+              List.concat
+                (List.map
+                   (fun el -> match el with Proj s -> [ s ] | _ -> [])
+                   okr_list))
+            keys))
+
+  let _parse_obj s =
+    match Str.string_match obj_re s 0 with
+    | false -> None
+    | true -> Some (Str.matched_group 1 s, Str.matched_group 2 s)
+end
