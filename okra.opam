@@ -7,6 +7,8 @@ authors: ["Magnus Skjegstad"]
 license: "ISC"
 depends: [
   "dune" {>= "2.8"}
+  "ocaml" {>= "4.07"}
+  "fmt"
   "omd" {>= "2.0"}
   "odoc" {with-doc}
 ]

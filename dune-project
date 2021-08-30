@@ -8,8 +8,10 @@
 (maintainers "magnus@skjegstad.com")
 
 (package
-	(name okra)
-	(synopsis "Report parsing prototypes")
-	(description "")
-	(depends
-		(omd (>= 2.0))))
+ (name okra)
+ (synopsis "Report parsing prototypes")
+ (description "")
+ (depends
+  (ocaml (>= 4.07))
+  fmt
+  (omd (>= 2.0))))

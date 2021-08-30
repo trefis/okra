@@ -1,0 +1,4 @@
+(library
+ (name okra)
+ (public_name okra)
+ (libraries omd fmt str))
