@@ -10,15 +10,16 @@ The code reads data from stdin, aggregates per KR and outputs the result.
 Example:
 
 ```
-# cat okr-report1.md okr-report2.md | okra | less
+# cat okr-report1.md okr-report2.md | okra cat | less
 ```
 
 If there are warnings that are not expected (i.e not about the "OKR updates" section), they should be manually resolved. There's also a script that handles some common formatting issues by fixing indents, bulletpoints etc (fmt.sh). To use it:
 
+```
+# cat okr-report1.md okr-report2.md | ./fmt.sh | okra cat | less
+```
 
-```
-# cat okr-report1.md okr-report2.md | ./fmt.sh | okra | less
-```
+Several options are available for modifying the output format, see `okra cat --help` for details. Sections can optionally be ignored and removed from the final output ("OKR updates" is ignored by default).
 
 ## Report format
 
@@ -40,7 +41,7 @@ The tool will attempt to group data by project, objective and KR if these match.
 
 ## Fixing warnings
 
-Warnings will be shown for sections that are unparsable for some reason. This can be because it doesn't follow the defined format (e.g. it is valid, but something else) or it can have accidental formatting errors. You should always check all warnings to make sure that the returned result is correct.
+Exceptions with warnings will be raised if the tool is unable to locate the engineer time in a section. This can be because it doesn't follow the defined format (e.g. it is valid, but something else) or it can have accidental formatting errors. You should always resolve warnings to make sure that the returned result is correct.
 
 Some issues that cause warnings:
 
