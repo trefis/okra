@@ -14,4 +14,5 @@
  (depends
   (ocaml (>= 4.07))
   fmt
+  cmdliner
   (omd (>= 2.0))))
