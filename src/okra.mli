@@ -17,7 +17,6 @@
 
 exception No_time_found of string
 exception Multiple_time_entries of string
-exception KR_title_id_mismatch of string
 
 type t = {
   counter : int;
@@ -42,5 +41,9 @@ module Weekly : sig
   val filter : t -> string -> t
 end
 
-val process : (string * string) list Omd.block list -> Weekly.table
+val process :
+  ?ignore_sections:string list ->
+  (string * string) list Omd.block list ->
+  Weekly.table
+
 val of_weekly : Weekly.t -> t
