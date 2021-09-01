@@ -1,5 +1,5 @@
 (*
- * Copyright (c) 2021 Magnus Skjegstad
+ * Copyright (c) 2021 Magnus Skjegstad <magnus@skjegstad.com>
  * Copyright (c) 2021 Thomas Gazagnaire <thomas@gazagnaire.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,94 +15,117 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-open Okra
+open Cmdliner
 
-(** [report_team_md okrs] outputs a team report to stdout. 
+type cat_conf = {
+  show_time : bool;
+  show_time_calc : bool;
+  show_engineers : bool;
+  ignore_sections : string list;
+  include_krs : string list;
+}
 
-[ignore_sections] ignores a list of subsections in the report. By default this
-is set to "OKR updates".
+type okra_conf = Cat of cat_conf
 
-[include_krs] only includes this list of KR IDs. Note that this will ignore
-empty KR IDs or KRs marked as "NEW KR" unless specified in the list. If the
-list is empty, all KRs are returned.
+let run cmds =
+  match cmds with
+  | Cat conf ->
+      let md = Omd.of_channel stdin in
+      let okrs = Okra.process ~ignore_sections:conf.ignore_sections md in
+      Reports.report_team_md ~show_time:conf.show_time
+        ~show_time_calc:conf.show_time_calc ~show_engineers:conf.show_engineers
+        ~include_krs:conf.include_krs okrs
 
-When [show_time_calc] is set, an extra line will be added to the output each
-time the same entry is included in the report with a sum at the end. This is
-useful for showing the intermediate steps when aggreating multiple reports that
-contain the same KR.
+let show_time_term =
+  let info =
+    Arg.info [ "show-time" ] ~doc:"Include engineering time in output"
+  in
+  Arg.value (Arg.opt Arg.bool true info)
 
-Example output with [show_time_calc] enabled:
+let show_time_calc_term =
+  let info =
+    Arg.info [ "show-time-calc" ]
+      ~doc:
+        "Include intermediate time calculations in output, showing each time \
+         entry found with a sum at the end. This is useful for debugging when \
+         aggregating reports for multiple weeks."
+  in
+  Arg.value (Arg.opt Arg.bool true info)
 
-- This is a KR (KR ID)
-  + @engineer1 (1 day), @engineer2 (1 day)
-  + @engineer1 (1 day)
-  = @engineer1 (2 days), @engineer2 (1 day)
-  - Work item
-  ...
+let show_engineers_term =
+  let info =
+    Arg.info [ "show-engineers" ] ~doc:"Include a list of engineers per KR"
+  in
+  Arg.value (Arg.opt Arg.bool true info)
 
-[show_time] shows the time entries
-[show_engineers] shows the list of engineers
+let ignore_sections_term =
+  let info =
+    Arg.info [ "ignore-sections" ]
+      ~doc:
+        "If non-empty, ignore everyhing under these sections (titles) from the \
+         report"
+  in
+  Arg.value (Arg.opt (Arg.list Arg.string) [ "OKR updates" ] info)
 
-*)
-let report_team_md ?ignore_sections:(ignore_sections=["OKR updates"])
-		   ?include_krs:(include_krs=[])
-		   ?show_time:(show_time=true)
-  		   ?show_time_calc:(show_time_calc=true)
-                   ?show_engineers:(show_engineers=true)
-		   okrs =
-  let v = List.map Okra.of_weekly (List.of_seq (Hashtbl.to_seq_values okrs)) in
-  let uppercase_include_krs = (List.map String.uppercase_ascii include_krs) in
-  let uppercase_ignore_sections = (List.map String.uppercase_ascii ignore_sections) in
-  let c_project = ref "" in
-  let c_objective = ref "" in
-  let c_kr_id = ref "" in
-  let c_kr_title = ref "" in
-  List.iter
-    (fun e ->
-      (* only proceed if include_krs is empty or has a match, and ignore_sections is empty or without match *)
-      if ((List.length include_krs == 0 || List.mem e.kr_id uppercase_include_krs)) &&
-	 ((List.length ignore_sections == 0 || not (List.mem (String.uppercase_ascii e.project) uppercase_ignore_sections))) then (
-	      if e.project <> !c_project then (
-		Printf.printf "\n# %s\n" e.project;
-		c_project := e.project)
-	      else ();
-	      if e.objective <> !c_objective then (
-		Printf.printf "\n## %s\n" e.objective;
-		c_objective := e.objective)
-	      else ();
-	      if e.kr_id <> !c_kr_id || e.kr_title <> !c_kr_title then (
-		Printf.printf "\n- %s (%s)\n" e.kr_title e.kr_id;
-		c_kr_title := e.kr_title;
-		c_kr_id := e.kr_id)
-	      else ();
-	      if show_engineers then (
-		      if show_time then (
-			      if show_time_calc then ( (* show time calc + engineers *)
-				      List.iter (fun s -> Printf.printf "    - + %s" s) e.time_entries;
-				      Printf.printf "    - = ";
-				      Hashtbl.iter
-					(fun s v -> Printf.printf "@%s (%.2f days) " s v)
-					e.time_per_engineer;
-				      Printf.printf "\n")
-			      else ( (* show total time for each engineer *)
-				      Printf.printf "    - ";
-				      Hashtbl.iter
-					(fun s v -> Printf.printf "@%s (%.2f days) " s v)
-					e.time_per_engineer;
-				      Printf.printf "\n"))
-		      else ( (* only show engineers, no time *)
-			      Printf.printf "    - ";
-			      Hashtbl.iter
-				(fun s _ -> Printf.printf "@%s " s)
-				e.time_per_engineer;
-			      Printf.printf "\n"))
-	      else (); (* don't show time or engineers *)
-	      List.iter (fun s -> Printf.printf "    - %s" s) e.work)
-      else () (* skip this KR *)
-    )
-    (List.sort Okra.compare v)
+let include_krs_term =
+  let info =
+    Arg.info [ "include-krs" ]
+      ~doc:"If non-empty, only include this list of KR IDs in the output."
+  in
+  Arg.value (Arg.opt (Arg.list Arg.string) [] info)
+
+let cat_term =
+  let cat show_time show_time_calc show_engineers include_krs ignore_sections =
+    Cat
+      {
+        show_time;
+        show_time_calc;
+        show_engineers;
+        include_krs;
+        ignore_sections;
+      }
+  in
+  Term.(
+    const cat
+    $ show_time_term
+    $ show_time_calc_term
+    $ show_engineers_term
+    $ include_krs_term
+    $ ignore_sections_term)
+
+let cat_cmd =
+  let info =
+    Term.info "cat" ~doc:"parse and concatenate reports"
+      ~man:
+        [
+          `S Manpage.s_description;
+          `P
+            "Parses one or more OKR reports and outputs a report aggregated \
+             per KR. See below for options for modifying the output format.";
+        ]
+  in
+  (cat_term, info)
+
+let root_term = Term.ret (Term.const (`Help (`Pager, None)))
+
+let root_cmd =
+  let info =
+    Term.info "okra" ~doc:"a tool to parse and process OKR reports"
+      ~man:
+        [
+          `S Manpage.s_description;
+          `P
+            "This tool can be used to aggregate and process OKR reports in a \
+             specific format. See project README for details.";
+        ]
+  in
+  (root_term, info)
 
 let () =
-  let md = Omd.of_channel stdin in
-  let okrs = Okra.process md in
-  report_team_md okrs
+  let conf =
+    match Term.eval_choice root_cmd [ cat_cmd ] with
+    | `Error _ -> exit 1
+    | `Version | `Help -> exit 0
+    | `Ok conf -> conf
+  in
+  run conf
