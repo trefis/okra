@@ -28,8 +28,26 @@ let this_week () =
   let now = Cal.now () in
   { week = Cal.week now; year = Cal.year now }
 
+(* ISO8601 compliant: https://en.wikipedia.org/wiki/ISO_week_date#Calculating_an_ordinal_or_month_date_from_a_week_date *)
+let monday_of_week week year =
+  let fourth =
+    Cal.Date.make year 1 4 |> Cal.Date.day_of_week |> Cal.Date.int_of_day
+  in
+  let monday = Cal.Date.int_of_day Cal.Mon in
+  let d = (week * 7) + monday - (fourth + 3) in
+  match d with
+  | d when d < 1 ->
+      let prev = year - 1 in
+      let doy = d + Cal.Date.days_in_year prev in
+      Cal.Date.from_day_of_year prev doy
+  | d when d > Cal.Date.days_in_year year ->
+      let doy = d - Cal.Date.days_in_year year in
+      Cal.Date.from_day_of_year year doy
+  | d -> Cal.Date.from_day_of_year year d
+
 let github_week t =
-  let monday, sunday = Cal.Date.week_first_last t.week t.year in
+  let monday = monday_of_week t.week t.year in
+  let sunday = Cal.Date.add monday (Cal.Date.Period.make 0 0 6) in
   let sunday =
     (* Some people might work on the sunday... *)
     Cal.Date.to_unixfloat sunday +. (day -. 1.) |> Cal.from_unixfloat
