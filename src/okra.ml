@@ -22,7 +22,6 @@ let hashtbl_keys ht =
 
 exception No_time_found of string
 exception Multiple_time_entries of string
-exception KR_title_id_mismatch of string
 
 (* Type for sanitized post-ast version *)
 type t = {
@@ -237,7 +236,10 @@ let store_result store okr_list =
     | Some _ -> true
   in
   match has_time with
-  | false -> Fmt.pr "WARNING: Ignored %a\n" pp okr_list
+  | false ->
+      raise
+        (No_time_found
+           (Fmt.str "WARNING: Time not found. Ignored %a\n" pp okr_list))
   | true -> (
       match Hashtbl.find_opt store key with
       | None -> Hashtbl.add store key [ okr_list ]
@@ -308,10 +310,16 @@ type state = {
   mutable current_o : string;
   mutable current_proj : string;
   mutable current_counter : int;
+  ignore_sections : string list;
 }
 
-let init () =
-  { current_o = "None"; current_proj = "Unknown"; current_counter = 0 }
+let init ?(ignore_sections = []) () =
+  {
+    current_o = "None";
+    current_proj = "Unknown";
+    current_counter = 0;
+    ignore_sections;
+  }
 
 let process_okr_block t ht hd tl =
   (* peek at each block in list, consume if match - otherwise return
@@ -337,9 +345,24 @@ let process_okr_block t ht hd tl =
                  okr_list
                else (* return empty list if it doesn't include Time/Work/OKR *)
                  okr_list) bls in*)
-            store_result ht
-              ([ Proj t.current_proj; O t.current_o; Counter t.current_counter ]
-              @ okr_list))
+            if
+              List.length t.ignore_sections == 0
+              || (* ignore if proj or obj is in ignore_sections *)
+              (not
+                 (List.mem
+                    (String.uppercase_ascii t.current_proj)
+                    t.ignore_sections))
+              && not
+                   (List.mem
+                      (String.uppercase_ascii t.current_o)
+                      t.ignore_sections)
+            then
+              store_result ht
+                ([
+                   Proj t.current_proj; O t.current_o; Counter t.current_counter;
+                 ]
+                @ okr_list)
+            else ())
           bls
       in
       t.current_counter <- t.current_counter + 1;
@@ -363,8 +386,9 @@ let rec process t ht ast =
   | hd :: tl -> process t ht (process_entry t ht hd tl)
   | [] -> ()
 
-let process ast =
-  let state = init () in
+let process ?(ignore_sections = [ "OKR Updates" ]) ast =
+  let u = List.map String.uppercase_ascii ignore_sections in
+  let state = init ~ignore_sections:u () in
   let store = Hashtbl.create 100 in
   process state store ast;
   store
