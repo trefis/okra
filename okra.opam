@@ -28,3 +28,6 @@ build: [
     "@doc" {with-doc}
   ]
 ]
+pin-depends: [
+  ["get-activity.dev" "git+https://github.com/patricoferris/get-activity#libraryify"]
+]
