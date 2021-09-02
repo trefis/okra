@@ -13,6 +13,7 @@
  (description "")
  (depends
   (ocaml (>= 4.07))
+  (alcotest :with-test)
   fmt
   cmdliner
   get-activity
