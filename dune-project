@@ -15,4 +15,5 @@
   (ocaml (>= 4.07))
   fmt
   cmdliner
+  calendar
   (omd (>= 2.0))))

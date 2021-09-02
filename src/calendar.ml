@@ -1,5 +1,5 @@
 (*
- * Copyright (c) 2021 Magnus Skjegstad <magnus@skjegstad.com>
+ * Copyright (c) 2021 Magnus Skjegstad
  * Copyright (c) 2021 Thomas Gazagnaire <thomas@gazagnaire.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,21 +15,24 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-open Cmdliner
+module Cal = CalendarLib.Calendar
 
-let root_term = Term.ret (Term.const (`Help (`Pager, None)))
+type t = { week : int; year : int }
 
-let root_cmd =
-  let info =
-    Term.info "okra" ~doc:"a tool to parse and process OKR reports"
-      ~man:
-        [
-          `S Manpage.s_description;
-          `P
-            "This tool can be used to aggregate and process OKR reports in a \
-             specific format. See project README for details.";
-        ]
+let week { week; _ } = week
+let year { year; _ } = year
+let day = 60. *. 60. *. 24.
+let make ~week ~year = { week; year }
+
+let this_week () =
+  let now = Cal.now () in
+  { week = Cal.week now; year = Cal.year now }
+
+let github_week t =
+  let monday, sunday = Cal.Date.week_first_last t.week t.year in
+  let sunday =
+    (* Some people might work on the sunday... *)
+    Cal.Date.to_unixfloat sunday +. (day -. 1.) |> Cal.from_unixfloat
   in
-  (root_term, info)
-
-let () = Term.(exit @@ eval_choice root_cmd [ Cat.cmd; Generate.cmd ])
+  ( Cal.Date.to_unixfloat monday |> Get_activity.Period.to_8601,
+    Cal.to_unixfloat sunday |> Get_activity.Period.to_8601 )

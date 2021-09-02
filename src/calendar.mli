@@ -1,5 +1,5 @@
 (*
- * Copyright (c) 2021 Magnus Skjegstad <magnus@skjegstad.com>
+ * Copyright (c) 2021 Magnus Skjegstad
  * Copyright (c) 2021 Thomas Gazagnaire <thomas@gazagnaire.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,21 +15,21 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-open Cmdliner
+type t
+(** A specific week and year *)
 
-let root_term = Term.ret (Term.const (`Help (`Pager, None)))
+val week : t -> int
+(** [week t] gets the week from [t] *)
 
-let root_cmd =
-  let info =
-    Term.info "okra" ~doc:"a tool to parse and process OKR reports"
-      ~man:
-        [
-          `S Manpage.s_description;
-          `P
-            "This tool can be used to aggregate and process OKR reports in a \
-             specific format. See project README for details.";
-        ]
-  in
-  (root_term, info)
+val year : t -> int
+(** [year t] gets the year from [t] *)
 
-let () = Term.(exit @@ eval_choice root_cmd [ Cat.cmd; Generate.cmd ])
+val make : week:int -> year:int -> t
+(** [make ~week ~year] constructs a new [t] *)
+
+val this_week : unit -> t
+(** [this_week ()] gets the current week and year *)
+
+val github_week : t -> string * string
+(** [github_week t] converts [t] into floats as strings ready to be passed to
+    the Github API *)

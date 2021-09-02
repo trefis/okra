@@ -1,0 +1,4 @@
+[submodule "get-activity"]
+	path = get-activity
+	url = https://github.com/patricoferris/get-activity.git
+	branch = libraryify
