@@ -15,5 +15,6 @@
   (ocaml (>= 4.07))
   fmt
   cmdliner
+  get-activity
   calendar
   (omd (>= 2.0))))
