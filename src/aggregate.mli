@@ -1,7 +1,6 @@
 (*
- * Copyright (c) 2021 Magnus Skjegstad <magnus@skjegstad.com>
+ * Copyright (c) 2021 Magnus Skjegstad
  * Copyright (c) 2021 Thomas Gazagnaire <thomas@gazagnaire.org>
- * Copyright (c) 2021 Patrick Ferris <pf341@patricoferris.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,21 +15,35 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-open Cmdliner
+exception No_time_found of string
+exception Multiple_time_entries of string
 
-let root_term = Term.ret (Term.const (`Help (`Pager, None)))
+type t = {
+  counter : int;
+  project : string;
+  objective : string;
+  kr_title : string;
+  kr_id : string;
+  time_entries : string list;
+  time_per_engineer : (string, float) Hashtbl.t;
+  work : string list;
+}
+(** TODO: make it abstract *)
 
-let root_cmd =
-  let info =
-    Term.info "okra" ~doc:"a tool to parse and process OKR reports"
-      ~man:
-        [
-          `S Manpage.s_description;
-          `P
-            "This tool can be used to aggregate and process OKR reports in a \
-             specific format. See project README for details.";
-        ]
-  in
-  (root_term, info)
+val compare : t -> t -> int
 
-let () = Term.(exit @@ eval_choice root_cmd [ Cat.cmd; Generate.cmd ])
+module Weekly : sig
+  type elt
+  type t = elt list list
+  type table = (string, t) Hashtbl.t
+
+  val pp : t Fmt.t
+  val filter : t -> string -> t
+end
+
+val process :
+  ?ignore_sections:string list ->
+  (string * string) list Omd.block list ->
+  Weekly.table
+
+val of_weekly : Weekly.t -> t

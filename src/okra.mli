@@ -1,6 +1,7 @@
 (*
  * Copyright (c) 2021 Magnus Skjegstad
  * Copyright (c) 2021 Thomas Gazagnaire <thomas@gazagnaire.org>
+ * Copyright (c) 2021 Patrick Ferris <pf341@patricoferris.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,35 +16,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-exception No_time_found of string
-exception Multiple_time_entries of string
-
-type t = {
-  counter : int;
-  project : string;
-  objective : string;
-  kr_title : string;
-  kr_id : string;
-  time_entries : string list;
-  time_per_engineer : (string, float) Hashtbl.t;
-  work : string list;
-}
-(** TODO: make it abstract *)
-
-val compare : t -> t -> int
-
-module Weekly : sig
-  type elt
-  type t = elt list list
-  type table = (string, t) Hashtbl.t
-
-  val pp : t Fmt.t
-  val filter : t -> string -> t
-end
-
-val process :
-  ?ignore_sections:string list ->
-  (string * string) list Omd.block list ->
-  Weekly.table
-
-val of_weekly : Weekly.t -> t
+module Aggregate = Aggregate
+module Activity = Activity
+module Calendar = Calendar

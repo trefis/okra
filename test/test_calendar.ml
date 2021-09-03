@@ -1,6 +1,4 @@
 (*
- * Copyright (c) 2021 Magnus Skjegstad <magnus@skjegstad.com>
- * Copyright (c) 2021 Thomas Gazagnaire <thomas@gazagnaire.org>
  * Copyright (c) 2021 Patrick Ferris <pf341@patricoferris.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -16,21 +14,26 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-open Cmdliner
+open Okra
 
-let root_term = Term.ret (Term.const (`Help (`Pager, None)))
+let test_week monday sunday week year () =
+  let week = Calendar.make ~week ~year in
+  let gen_monday, gen_sunday = Calendar.github_week week in
+  Alcotest.(check string) "same monday" monday gen_monday;
+  Alcotest.(check string) "same sunday" sunday gen_sunday
 
-let root_cmd =
-  let info =
-    Term.info "okra" ~doc:"a tool to parse and process OKR reports"
-      ~man:
-        [
-          `S Manpage.s_description;
-          `P
-            "This tool can be used to aggregate and process OKR reports in a \
-             specific format. See project README for details.";
-        ]
-  in
-  (root_term, info)
-
-let () = Term.(exit @@ eval_choice root_cmd [ Cat.cmd; Generate.cmd ])
+let tests =
+  [
+    ( "week_1_2020",
+      `Quick,
+      test_week "2019-12-30T00:00:00Z" "2020-01-05T23:59:59Z" 1 2020 );
+    ( "week_1_2021",
+      `Quick,
+      test_week "2021-01-04T00:00:00Z" "2021-01-10T23:59:59Z" 1 2021 );
+    ( "week_1_2022",
+      `Quick,
+      test_week "2022-01-03T00:00:00Z" "2022-01-09T23:59:59Z" 1 2022 );
+    ( "week_35_2021",
+      `Quick,
+      test_week "2021-08-30T00:00:00Z" "2021-09-05T23:59:59Z" 35 2021 );
+  ]

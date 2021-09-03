@@ -1,6 +1,7 @@
 (*
  * Copyright (c) 2021 Magnus Skjegstad <magnus@skjegstad.com>
  * Copyright (c) 2021 Thomas Gazagnaire <thomas@gazagnaire.org>
+ * Copyright (c) 2021 Patrick Ferris <pf341@patricoferris.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-open Okra
+open Okra.Aggregate
 
 (** [report_team_md okrs] outputs a team report to stdout.
 
@@ -32,7 +33,9 @@ open Okra
     engineers *)
 let report_team_md ?(include_krs = []) ?(show_time = true)
     ?(show_time_calc = true) ?(show_engineers = true) okrs =
-  let v = List.map Okra.of_weekly (List.of_seq (Hashtbl.to_seq_values okrs)) in
+  let v =
+    List.map Okra.Aggregate.of_weekly (List.of_seq (Hashtbl.to_seq_values okrs))
+  in
   let uppercase_include_krs = List.map String.uppercase_ascii include_krs in
   let c_project = ref "" in
   let c_objective = ref "" in
@@ -82,4 +85,4 @@ let report_team_md ?(include_krs = []) ?(show_time = true)
         (* don't show time or engineers *)
         List.iter (fun s -> Printf.printf "    - %s" s) e.work)
       else () (* skip this KR *))
-    (List.sort Okra.compare v)
+    (List.sort Okra.Aggregate.compare v)

@@ -1,6 +1,4 @@
 (*
- * Copyright (c) 2021 Magnus Skjegstad <magnus@skjegstad.com>
- * Copyright (c) 2021 Thomas Gazagnaire <thomas@gazagnaire.org>
  * Copyright (c) 2021 Patrick Ferris <pf341@patricoferris.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -16,21 +14,12 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-open Cmdliner
+type t
+(** Configuration for get-activity *)
 
-let root_term = Term.ret (Term.const (`Help (`Pager, None)))
+val make : string -> t
+(** [make token] constructs a new configuration using the [token] *)
 
-let root_cmd =
-  let info =
-    Term.info "okra" ~doc:"a tool to parse and process OKR reports"
-      ~man:
-        [
-          `S Manpage.s_description;
-          `P
-            "This tool can be used to aggregate and process OKR reports in a \
-             specific format. See project README for details.";
-        ]
-  in
-  (root_term, info)
-
-let () = Term.(exit @@ eval_choice root_cmd [ Cat.cmd; Generate.cmd ])
+val run : Calendar.t -> t -> (string, [ `Msg of string ]) Lwt_result.t
+(** [run cal t] produces a get-activity report for the week and year specified
+    by [cal] using the configuration [t]. *)
