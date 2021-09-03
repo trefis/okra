@@ -16,6 +16,7 @@
   (alcotest :with-test)
   fmt
   cmdliner
+  bos
   get-activity
   calendar
   (omd (>= 2.0))))
