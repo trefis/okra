@@ -49,12 +49,48 @@ module Gql = struct
           body
 end
 
-type t = { token : string }
+type conf = { token : string }
 
-let make token = { token }
+let make_conf token = { token }
 
-let run date { token } =
-  let from, to_ = Calendar.github_week date in
+let pp_last_week username ppf projects =
+  let pp_project ppf t =
+    Fmt.pf ppf "- %s\n  - @%s (<X> days)\n  - Work Item 1" t username
+  in
+  Fmt.pf ppf "%a" Fmt.(list ~sep:(cut ++ cut) pp_project) projects
+
+let pp_activity ppf activity =
+  let open Get_activity.Contributions in
+  let pp_item ppf item = Fmt.pf ppf " - %a" pp_title item in
+  let bindings = Repo_map.bindings activity in
+  let pp_binding ppf (_repo, items) =
+    Fmt.pf ppf "%a" Fmt.(list pp_item) items
+  in
+  Fmt.pf ppf "%a" Fmt.(list pp_binding) bindings
+
+type t = { projects : string list; activity : Get_activity.Contributions.t }
+
+let make ~projects activity = { projects; activity }
+
+let pp ppf { projects; activity = { username; activity } } =
+  Fmt.pf ppf
+    {|# Projects
+
+%a
+
+# Last Week
+
+%a
+
+# Activity (move these items to last week)
+
+%a
+|}
+    Fmt.(list string)
+    projects (pp_last_week username) projects pp_activity activity
+
+let run ~cal ~projects { token } =
+  let from, to_ = Calendar.github_week cal in
   let variables = [ ("from", `String from); ("to", `String to_) ] in
   let fetch_params =
     Gql.
@@ -69,6 +105,6 @@ let run date { token } =
   >>= fun json ->
   match json with
   | Ok json ->
-      let ga = Get_activity.Contributions.of_json ~from json in
-      Lwt.return (Ok (Fmt.str "%a" Get_activity.Contributions.pp ga))
+      let activity = Get_activity.Contributions.of_json ~from json in
+      Lwt.return (Ok { projects; activity })
   | Error _ as e -> Lwt.return e
