@@ -61,16 +61,31 @@ let token =
           ~/.github/github-activity-token"
        ~docv:"TOKEN" [ "t"; "token" ]
 
-let run cal conf =
+let default_okra_file =
+  let ( / ) = Filename.concat in
+  home / ".okra" / "conf"
+
+let okra =
+  Arg.value
+  @@ Arg.opt Arg.file default_okra_file
+  @@ Arg.info
+       ~doc:
+         "The path to a file containing your okra configuration file, defaults \
+          to ~/.okra/conf"
+       ~docv:"CONF" [ "conf" ]
+
+let run cal projects conf =
   let open Lwt_result.Infix in
-  match Lwt_main.run (Activity.run cal conf >|= Fmt.pr "%s") with
+  match
+    Lwt_main.run (Activity.run ~cal ~projects conf >|= Fmt.pr "%a" Activity.pp)
+  with
   | Ok () -> ()
   | Error (`Msg m) ->
       Fmt.epr "%s" m;
       exit 1
 
 let term =
-  let make_with_file cal token_file =
+  let make_with_file cal okra_file token_file =
     let token =
       match Get_activity.Token.load token_file with
       | Ok token -> token
@@ -78,10 +93,15 @@ let term =
           Fmt.epr "%s" msg;
           exit 1
     in
-    let conf = Activity.make token in
-    run cal conf
+    let projects =
+      match Bos.OS.File.read_lines (Fpath.v okra_file) with
+      | Ok projects -> projects
+      | Error (`Msg _) -> [ "TODO ADD KR (ID)" ]
+    in
+    let conf = Activity.make_conf token in
+    run cal projects conf
   in
-  Term.(const make_with_file $ calendar_term $ token)
+  Term.(const make_with_file $ calendar_term $ okra $ token)
 
 let cmd =
   let info =

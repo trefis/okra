@@ -11,6 +11,7 @@ depends: [
   "alcotest" {with-test}
   "fmt"
   "cmdliner"
+  "bos"
   "get-activity"
   "calendar"
   "omd" {>= "2.0"}
@@ -31,5 +32,5 @@ build: [
   ]
 ]
 pin-depends: [
-  ["get-activity.dev" "git+https://github.com/patricoferris/get-activity#6d45ea876ffa20c865879cadacadce612ed04e63"]
+  ["get-activity.dev" "git+https://github.com/patricoferris/get-activity#1ef19055b27c46e3fc7e27acfed9ab83bd423d8a"]
 ]
