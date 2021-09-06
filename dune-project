@@ -19,4 +19,5 @@
   bos
   get-activity
   calendar
+  (yaml (>= 3.0))
   (omd (>= 2.0))))
