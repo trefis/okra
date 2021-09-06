@@ -17,6 +17,8 @@
 
 exception No_time_found of string
 exception Multiple_time_entries of string
+exception Invalid_time of string
+exception No_work_found of string
 
 type t = {
   counter : int;
