@@ -33,12 +33,14 @@ let include_sections_term =
   Arg.value (Arg.opt (Arg.list Arg.string) [] info)
 
 let run conf =
+  let success = ref true in
   if List.length conf.files > 0 then (
     List.iter
       (fun f ->  
         let ic = open_in f in
         try
-          let _ = Okra.Lint.lint ~include_sections:conf.include_sections ic in
+          let res = Okra.Lint.lint ~include_sections:conf.include_sections ic in
+          if (not res) then success := res else ();
           close_in ic;
         with e->
           close_in_noerr ic;
@@ -47,11 +49,15 @@ let run conf =
       ) conf.files)
   else (
     try
-      let _ = Okra.Lint.lint stdin in ()
+      let res = Okra.Lint.lint ~include_sections:conf.include_sections stdin in
+      if (not res) then success := res else ()
     with e->
       Printf.fprintf stderr "Caught error while linting:\n\n";
       raise e
-  )
+  );
+  if not !success then (
+    exit 1)
+  else ()
 
 let term =
   let lint include_sections files =
