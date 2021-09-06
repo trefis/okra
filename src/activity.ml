@@ -86,7 +86,7 @@ let pp ppf { projects; activity = { username; activity } } =
 
 %a
 |}
-    Fmt.(list string)
+    Fmt.(list (fun ppf s -> Fmt.pf ppf "- %s" s))
     projects (pp_last_week username) projects pp_activity activity
 
 let run ~cal ~projects { token } =
