@@ -16,7 +16,7 @@
 
 type t = { projects : string list; locations : string list }
 
-let default = { projects = []; locations = [] }
+let default = { projects = [ "TODO ADD KR (ID)" ]; locations = [] }
 let conf_err s = Error (`Msg (Fmt.str "Okra Conf Error: %s" s))
 
 let of_yaml yaml =
