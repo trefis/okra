@@ -311,14 +311,16 @@ type state = {
   mutable current_proj : string;
   mutable current_counter : int;
   ignore_sections : string list;
+  include_sections : string list;
 }
 
-let init ?(ignore_sections = []) () =
+let init ?(ignore_sections = []) ?(include_sections=[]) () =
   {
     current_o = "None";
     current_proj = "Unknown";
     current_counter = 0;
     ignore_sections;
+    include_sections;
   }
 
 let process_okr_block t ht hd tl =
@@ -341,10 +343,6 @@ let process_okr_block t ht hd tl =
         List.map
           (fun xs ->
             let okr_list = List.concat (List.map block_okr xs) in
-            (*if List.length okr_list = 3 then
-                 okr_list
-               else (* return empty list if it doesn't include Time/Work/OKR *)
-                 okr_list) bls in*)
             if
               List.length t.ignore_sections == 0
               || (* ignore if proj or obj is in ignore_sections *)
@@ -357,11 +355,23 @@ let process_okr_block t ht hd tl =
                       (String.uppercase_ascii t.current_o)
                       t.ignore_sections)
             then
-              store_result ht
-                ([
-                   Proj t.current_proj; O t.current_o; Counter t.current_counter;
-                 ]
-                @ okr_list)
+		if
+		      List.length t.include_sections == 0
+		      || (* only include if proj or obj is in include_sections *)
+		      (List.mem
+			    (String.uppercase_ascii t.current_proj)
+			    t.include_sections)
+		      ||
+		      (List.mem
+			      (String.uppercase_ascii t.current_o)
+			      t.include_sections)
+		then
+		      store_result ht
+			([
+			   Proj t.current_proj; O t.current_o; Counter t.current_counter;
+			 ]
+			@ okr_list)
+		else ()
             else ())
           bls
       in
@@ -386,9 +396,10 @@ let rec process t ht ast =
   | hd :: tl -> process t ht (process_entry t ht hd tl)
   | [] -> ()
 
-let process ?(ignore_sections = [ "OKR Updates" ]) ast =
-  let u = List.map String.uppercase_ascii ignore_sections in
-  let state = init ~ignore_sections:u () in
+let process ?(ignore_sections = [ "OKR Updates" ]) ?(include_sections=[]) ast =
+  let u_ignore = List.map String.uppercase_ascii ignore_sections in
+  let u_include = List.map String.uppercase_ascii include_sections in
+  let state = init ~ignore_sections:u_ignore ~include_sections:u_include () in
   let store = Hashtbl.create 100 in
   process state store ast;
   store
