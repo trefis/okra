@@ -16,6 +16,7 @@
 
 type t = {
   include_sections : string list;
+  ignore_sections : string list;
   files : string list;
 }
 
@@ -32,6 +33,30 @@ let include_sections_term =
   in
   Arg.value (Arg.opt (Arg.list Arg.string) [] info)
 
+let ignore_sections_term =
+  let info =
+    Arg.info [ "ignore-sections" ]
+      ~doc:
+        "If non-empty, don't lint entries under the specified sections."
+  in
+  Arg.value (Arg.opt (Arg.list Arg.string) [] info)
+
+let engineer_term =
+  let info =
+    Arg.info [ "engineer"; "e" ]
+      ~doc:
+        "Lint an engineer report. This is an alias for --include-sections=\"last week\", --ignore-sections=\"\""
+  in
+  Arg.value (Arg.flag info)
+
+let team_term =
+  let info =
+    Arg.info [ "team"; "t" ]
+      ~doc:
+        "Lint a team report. This is an alias for --include-sections=\"\", --ignore-sections=\"OKR updates\""
+  in
+  Arg.value (Arg.flag info)
+
 let run conf =
   let success = ref true in
   if List.length conf.files > 0 then (
@@ -39,7 +64,7 @@ let run conf =
       (fun f ->  
         let ic = open_in f in
         try
-          let res = Okra.Lint.lint ~include_sections:conf.include_sections ic in
+          let res = Okra.Lint.lint ~include_sections:conf.include_sections ~ignore_sections:conf.ignore_sections ic in
           if (not res) then success := res else ();
           close_in ic;
         with e->
@@ -49,7 +74,7 @@ let run conf =
       ) conf.files)
   else (
     try
-      let res = Okra.Lint.lint ~include_sections:conf.include_sections stdin in
+      let res = Okra.Lint.lint ~include_sections:conf.include_sections ~ignore_sections:conf.ignore_sections stdin in
       if (not res) then success := res else ()
     with e->
       Printf.fprintf stderr "Caught error while linting:\n\n";
@@ -60,18 +85,36 @@ let run conf =
   else ()
 
 let term =
-  let lint include_sections files =
+  let lint include_sections ignore_sections engineer team files =
     let conf =
-      {
-        include_sections;
-        files;
-      }
+      if engineer then (
+        {
+          include_sections = ["Last week"];
+          ignore_sections = [];
+          files;
+        })
+      else
+      if team then (
+        {
+          include_sections;
+          ignore_sections = ["OKR updates"];
+          files;
+        })
+      else (
+          {
+            include_sections;
+            ignore_sections;
+            files;
+          })
     in
     run conf
   in
   Term.(
     const lint
     $ include_sections_term
+    $ ignore_sections_term
+    $ engineer_term
+    $ team_term
     $ files_term)
 
 let cmd =

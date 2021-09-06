@@ -14,4 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *) 
 
-val lint: ?include_sections:(string list) -> in_channel -> bool
+val lint: ?include_sections:(string list) ->
+          ?ignore_sections:(string list) ->
+          in_channel -> bool

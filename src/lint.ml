@@ -24,7 +24,7 @@ let fail_fmt_patterns =
     (Str.regexp "^[ ]+#"), "Space found before title marker #. Start titles in first column.";
   ]
 
-let lint ?(include_sections=[]) ic =
+let lint ?(include_sections=[]) ?(ignore_sections=[]) ic =
   let failures = ref 0 in 
   let rec check_and_read buf ic pos =
     (try
@@ -50,7 +50,7 @@ let lint ?(include_sections=[]) ic =
     (* parse and without output to sanity check *)
     (try
       let md = Omd.of_string s in
-      let okrs = Aggregate.process ~include_sections:include_sections md in
+      let okrs = Aggregate.process ~include_sections:include_sections ~ignore_sections:ignore_sections md in
       let _ = List.map Aggregate.of_weekly (List.of_seq (Hashtbl.to_seq_values okrs)) in
       true
     with
