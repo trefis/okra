@@ -61,47 +61,31 @@ let token =
           ~/.github/github-activity-token"
        ~docv:"TOKEN" [ "t"; "token" ]
 
-let default_okra_file =
-  let ( / ) = Filename.concat in
-  home / ".okra" / "conf"
-
-let okra =
-  Arg.value
-  @@ Arg.opt Arg.file default_okra_file
-  @@ Arg.info
-       ~doc:
-         "The path to a file containing your okra configuration file, defaults \
-          to ~/.okra/conf"
-       ~docv:"CONF" [ "conf" ]
-
-let run cal projects conf =
-  let open Lwt_result.Infix in
-  match
-    Lwt_main.run (Activity.run ~cal ~projects conf >|= Fmt.pr "%a" Activity.pp)
-  with
-  | Ok () -> ()
+let get_or_error = function
+  | Ok v -> v
   | Error (`Msg m) ->
       Fmt.epr "%s" m;
       exit 1
 
+let run cal projects conf =
+  let open Lwt_result.Infix in
+  let res =
+    Lwt_main.run (Activity.run ~cal ~projects conf >|= Fmt.pr "%a" Activity.pp)
+  in
+  get_or_error res
+
 let term =
   let make_with_file cal okra_file token_file =
-    let token =
-      match Get_activity.Token.load token_file with
-      | Ok token -> token
-      | Error (`Msg msg) ->
-          Fmt.epr "%s" msg;
-          exit 1
-    in
-    let projects =
-      match Bos.OS.File.read_lines (Fpath.v okra_file) with
-      | Ok projects -> projects
-      | Error (`Msg _) -> [ "TODO ADD KR (ID)" ]
+    let token = get_or_error @@ Get_activity.Token.load token_file in
+    let okra_conf =
+      match get_or_error @@ Bos.OS.File.exists (Fpath.v okra_file) with
+      | false -> Conf.default
+      | true -> get_or_error @@ Conf.load okra_file
     in
     let conf = Activity.make_conf token in
-    run cal projects conf
+    run cal (Conf.projects okra_conf) conf
   in
-  Term.(const make_with_file $ calendar_term $ okra $ token)
+  Term.(const make_with_file $ calendar_term $ Conf.cmdliner $ token)
 
 let cmd =
   let info =

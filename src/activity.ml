@@ -61,7 +61,7 @@ let pp_last_week username ppf projects =
 
 let pp_activity ppf activity =
   let open Get_activity.Contributions in
-  let pp_item ppf item = Fmt.pf ppf " - %a" pp_title item in
+  let pp_item ppf item = Fmt.pf ppf "  - %a" pp_title item in
   let bindings = Repo_map.bindings activity in
   let pp_binding ppf (_repo, items) =
     Fmt.pf ppf "%a" Fmt.(list pp_item) items

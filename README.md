@@ -49,3 +49,17 @@ Some issues that cause warnings:
   - Inconsistent bulletpoint formatting. If switching between different bulletpoint markers (such as +, - and asterisk) in the same list, the parser `omd` can become confused. Fix this by always using `-`.
   - Inconsistent indent. If the indent for bulletpoints is only a space (instead of two or a tab) the parse can be confused. Similarly if it switches between tabs and spaces.
   - The OKR line is not followed by a line of engineer-time, with each name prefixed by '@' -- sometimes the '@' is forgotten.
+
+## Okra Configuration File
+
+You can store a `conf.yaml` file in `~/.okra` to provide the binary with extra information to help writing weekly reports, aggregating across directories etc. You don't need a configuration file, there is a default one (but it isn't particularly useful).
+
+```yaml
+# Projects are used in weekly report generation (optional)
+projects:
+  - "Make okra great (Plat123)"
+# Locations will be used in aggregation across multiple directories (optional)
+locations:
+  - "/path/to/admin/dir1"
+  - "/path/to/admin/dir2"
+```
