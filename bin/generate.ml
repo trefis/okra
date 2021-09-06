@@ -89,15 +89,16 @@ let term =
 
 let cmd =
   let info =
-    Term.info "generate" ~doc:"Generate an initial weekly report based on Github activity"
+    Term.info "generate"
+      ~doc:"Generate an initial weekly report based on Github activity"
       ~man:
         [
           `S Manpage.s_description;
           `P
-            "Produces a markdown document using your activity \
-             on Github. See the options below for changing things like which \
-             week to query for and where to find your token. To generate a \
-             token see the README at https://github.com/talex5/get-activity.";
+            "Produces a markdown document using your activity on Github. See \
+             the options below for changing things like which week to query \
+             for and where to find your token. To generate a token see the \
+             README at https://github.com/talex5/get-activity.";
         ]
   in
   (term, info)

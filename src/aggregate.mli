@@ -43,13 +43,13 @@ module Weekly : sig
   val filter : t -> string -> t
 end
 
-(** Process markdown data from omd. Optionally [ignore_sections] can be used to
-ignore specific sections, or [include_sections] can be used to only process 
-specific sections. *)
 val process :
   ?ignore_sections:string list ->
   ?include_sections:string list ->
   (string * string) list Omd.block list ->
   Weekly.table
+(** Process markdown data from omd. Optionally [ignore_sections] can be used to
+    ignore specific sections, or [include_sections] can be used to only process
+    specific sections. *)
 
 val of_weekly : Weekly.t -> t

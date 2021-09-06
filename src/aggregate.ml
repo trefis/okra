@@ -21,8 +21,11 @@ let hashtbl_keys ht =
   List.sort_uniq String.compare (List.of_seq (Hashtbl.to_seq_keys ht))
 
 exception No_time_found of string (* Record found without a time record *)
+
 exception Invalid_time of string (* Time record found, but has errors *)
+
 exception No_work_found of string (* No work items found under KR *)
+
 exception Multiple_time_entries of string (* More than one time entry found *)
 
 (* Type for sanitized post-ast version *)
@@ -184,7 +187,8 @@ let time_block_is_sane s =
   List.for_all
     (fun s ->
       let s = String.trim s in
-      Str.string_match regexp s 0) pieces
+      Str.string_match regexp s 0)
+    pieces
 
 let is_suffix suffix s =
   String.length s >= String.length suffix
@@ -324,7 +328,7 @@ type state = {
   include_sections : string list;
 }
 
-let init ?(ignore_sections = []) ?(include_sections=[]) () =
+let init ?(ignore_sections = []) ?(include_sections = []) () =
   {
     current_o = "None";
     current_proj = "Unknown";
@@ -365,23 +369,24 @@ let process_okr_block t ht hd tl =
                       (String.uppercase_ascii t.current_o)
                       t.ignore_sections)
             then
-		if
-		      List.length t.include_sections == 0
-		      || (* only include if proj or obj is in include_sections *)
-		      (List.mem
-			    (String.uppercase_ascii t.current_proj)
-			    t.include_sections)
-		      ||
-		      (List.mem
-			      (String.uppercase_ascii t.current_o)
-			      t.include_sections)
-		then
-		      store_result ht
-			([
-			   Proj t.current_proj; O t.current_o; Counter t.current_counter;
-			 ]
-			@ okr_list)
-		else ()
+              if
+                List.length t.include_sections == 0
+                (* only include if proj or obj is in include_sections *)
+                || List.mem
+                     (String.uppercase_ascii t.current_proj)
+                     t.include_sections
+                || List.mem
+                     (String.uppercase_ascii t.current_o)
+                     t.include_sections
+              then
+                store_result ht
+                  ([
+                     Proj t.current_proj;
+                     O t.current_o;
+                     Counter t.current_counter;
+                   ]
+                  @ okr_list)
+              else ()
             else ())
           bls
       in
@@ -406,7 +411,8 @@ let rec process t ht ast =
   | hd :: tl -> process t ht (process_entry t ht hd tl)
   | [] -> ()
 
-let process ?(ignore_sections = [ "OKR Updates" ]) ?(include_sections=[]) ast =
+let process ?(ignore_sections = [ "OKR Updates" ]) ?(include_sections = []) ast
+    =
   let u_ignore = List.map String.uppercase_ascii ignore_sections in
   let u_include = List.map String.uppercase_ascii include_sections in
   let state = init ~ignore_sections:u_ignore ~include_sections:u_include () in
@@ -456,9 +462,8 @@ let of_weekly okr_list =
               (* Store the string entry to be able to check correctness later *)
               okr_time_entries := !okr_time_entries @ [ t_ ];
               (* check that time block makes sense *)
-              if (not (time_block_is_sane t_)) then (
+              if not (time_block_is_sane t_) then
                 raise (Invalid_time (Fmt.str "Time record is invalid: %s" t_))
-              )
               else ();
               (* split on @, then extract first word and any float after *)
               let t_split = Str.split (Str.regexp "@+") t_ in
@@ -508,9 +513,10 @@ let of_weekly okr_list =
   in
 
   (* Some basic sanity checking *)
-  if (List.length work == 0) then (
-    raise (No_work_found (Fmt.str "KR with ID %s is without work items" !okr_kr_id))
-  ) else ();
+  if List.length work == 0 then
+    raise
+      (No_work_found (Fmt.str "KR with ID %s is without work items" !okr_kr_id))
+  else ();
 
   (* Construct final entry *)
   {
