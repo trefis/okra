@@ -38,7 +38,7 @@ let ignore_sections_term =
     Arg.info [ "ignore-sections" ]
       ~doc:"If non-empty, don't lint entries under the specified sections."
   in
-  Arg.value (Arg.opt (Arg.list Arg.string) [] info)
+  Arg.value (Arg.opt (Arg.list Arg.string) ["OKR updates"] info)
 
 let engineer_term =
   let info =
