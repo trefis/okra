@@ -28,6 +28,10 @@ exception No_work_found of string (* No work items found under KR *)
 
 exception Multiple_time_entries of string (* More than one time entry found *)
 
+exception No_KR_ID_found of string (* Empty or no KR ID *)
+
+exception No_title_found of string (* No title found *)
+
 (* Type for sanitized post-ast version *)
 type t = {
   counter : int;
@@ -330,8 +334,8 @@ type state = {
 
 let init ?(ignore_sections = []) ?(include_sections = []) () =
   {
-    current_o = "None";
-    current_proj = "Unknown";
+    current_o = "";
+    current_proj = "";
     current_counter = 0;
     ignore_sections;
     include_sections;
@@ -516,6 +520,23 @@ let of_weekly okr_list =
   if List.length work == 0 then
     raise
       (No_work_found (Fmt.str "KR with ID %s is without work items" !okr_kr_id))
+  else ();
+
+  if String.length (String.trim !okr_kr_id) == 0 then
+    raise
+      (No_KR_ID_found
+         (Fmt.str "No KR ID found for \"%s\" (under objective %s)" !okr_kr_title
+            !okr_obj))
+  else ();
+
+  if
+    String.length (String.trim !okr_proj) == 0
+    || String.length (String.trim !okr_obj) == 0
+  then
+    raise
+      (No_title_found
+         (Fmt.str "No title for project or objective found for \"%s\""
+            !okr_kr_title))
   else ();
 
   (* Construct final entry *)

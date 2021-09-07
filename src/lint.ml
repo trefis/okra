@@ -21,6 +21,8 @@ type lint_result =
   | Invalid_time of string
   | Multiple_time_entries of string
   | No_work_found of string
+  | No_KR_ID_found of string
+  | No_title_found of string
 
 let fail_fmt_patterns =
   [
@@ -79,6 +81,20 @@ let string_of_result res =
            "No work items found. This may indicate an unreported parsing \
             error. Remove the KR if it is without work.\n\
             Error: %s\n"
+           s)
+  | No_title_found s ->
+      Buffer.add_string buf
+        (Fmt.str
+           "The input should contain at least one title (starting with #)\n\
+            Error: %s\n"
+           s)
+  | No_KR_ID_found s ->
+      Buffer.add_string buf
+        (Fmt.str
+           "No KR ID found. KRs should be in the format \"This is a KR \
+            (PLAT123)\", where PLAT123 is the KR ID. For KRs that don't have \
+            an ID yet, use \"New KR\".\n\
+            Error: %s\n"
            s));
   Buffer.contents buf
 
@@ -117,3 +133,5 @@ let lint ?(include_sections = []) ?(ignore_sections = []) ic =
     | Aggregate.Invalid_time s -> Invalid_time s
     | Aggregate.Multiple_time_entries s -> Multiple_time_entries s
     | Aggregate.No_work_found s -> No_work_found s
+    | Aggregate.No_KR_ID_found s -> No_KR_ID_found s
+    | Aggregate.No_title_found s -> No_title_found s

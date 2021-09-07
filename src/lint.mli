@@ -21,6 +21,8 @@ type lint_result =
   | Invalid_time of string
   | Multiple_time_entries of string
   | No_work_found of string
+  | No_KR_ID_found of string
+  | No_title_found of string
 
 val lint :
   ?include_sections:string list ->
