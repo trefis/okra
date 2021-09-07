@@ -38,7 +38,7 @@ let ignore_sections_term =
     Arg.info [ "ignore-sections" ]
       ~doc:"If non-empty, don't lint entries under the specified sections."
   in
-  Arg.value (Arg.opt (Arg.list Arg.string) ["OKR updates"] info)
+  Arg.value (Arg.opt (Arg.list Arg.string) [ "OKR updates" ] info)
 
 let engineer_term =
   let info =
@@ -59,34 +59,40 @@ let team_term =
   Arg.value (Arg.flag info)
 
 let run conf =
-  let success = ref true in
-  (if List.length conf.files > 0 then
-   List.iter
-     (fun f ->
-       let ic = open_in f in
-       try
-         let res =
-           Okra.Lint.lint ~include_sections:conf.include_sections
-             ~ignore_sections:conf.ignore_sections ic
-         in
-         if not res then success := res else ();
-         close_in ic
-       with e ->
-         close_in_noerr ic;
-         Printf.fprintf stderr "Caught error while linting:\n\n";
-         raise e)
-     conf.files
-  else
-    try
+  try
+    if List.length conf.files > 0 then
+      List.iter
+        (fun f ->
+          let ic = open_in f in
+          try
+            let res =
+              Okra.Lint.lint ~include_sections:conf.include_sections
+                ~ignore_sections:conf.ignore_sections ic
+            in
+            if res <> Okra.Lint.No_error then (
+              Printf.fprintf stderr "Error(s) in file %s:\n\n%s" f
+                (Okra.Lint.string_of_result res);
+              close_in ic;
+              exit 1)
+            else ();
+            close_in ic
+          with e ->
+            close_in_noerr ic;
+            raise e)
+        conf.files
+    else
       let res =
         Okra.Lint.lint ~include_sections:conf.include_sections
           ~ignore_sections:conf.ignore_sections stdin
       in
-      if not res then success := res else ()
-    with e ->
-      Printf.fprintf stderr "Caught error while linting:\n\n";
-      raise e);
-  if not !success then exit 1 else ()
+      if res <> Okra.Lint.No_error then (
+        Printf.fprintf stderr "Error(s) in input stream:\n\n%s"
+          (Okra.Lint.string_of_result res);
+        exit 1)
+      else ()
+  with e ->
+    Printf.fprintf stderr "Caught unknown error while linting:\n\n";
+    raise e
 
 let term =
   let lint include_sections ignore_sections engineer team files =

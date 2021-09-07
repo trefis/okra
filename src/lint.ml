@@ -14,6 +14,14 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
+type lint_result =
+  | No_error
+  | Format_error of (int * string) list
+  | No_time_found of string
+  | Invalid_time of string
+  | Multiple_time_entries of string
+  | No_work_found of string
+
 let fail_fmt_patterns =
   [
     (Str.regexp ".*\t", "Tab found. Use spaces for indentation (2 preferred).");
@@ -33,16 +41,56 @@ let fail_fmt_patterns =
       "Space found before title marker #. Start titles in first column." );
   ]
 
+let string_of_result res =
+  let buf = Buffer.create 16 in
+  (match res with
+  | No_error -> Buffer.add_string buf "No error\n"
+  | Format_error x ->
+      List.iter
+        (fun (pos, msg) ->
+          Buffer.add_string buf (Fmt.str "Line %d: %s\n" pos msg))
+        x;
+      Buffer.add_string buf
+        (Fmt.str "%d formatting errors found. Parsing aborted.\n"
+           (List.length x))
+  | No_time_found s ->
+      Buffer.add_string buf
+        (Fmt.str
+           "No time entry found. Each KR must be followed by '- @... (x days)\n\
+            Error: %s\n"
+           s)
+  | Invalid_time s ->
+      Buffer.add_string buf
+        (Fmt.str
+           "Invalid time entry found. Format is '- @eng1 (x days), @eng2 (x \
+            days)'\n\
+            Error: %s\n"
+           s)
+  | Multiple_time_entries s ->
+      Buffer.add_string buf
+        (Fmt.str
+           "KR with multiple time entries found. Only one time entry should \
+            follow immediately after the KR.\n\
+            Error: %s\n"
+           s)
+  | No_work_found s ->
+      Buffer.add_string buf
+        (Fmt.str
+           "No work items found. This may indicate an unreported parsing \
+            error. Remove the KR if it is without work.\n\
+            Error: %s\n"
+           s));
+  Buffer.contents buf
+
 let lint ?(include_sections = []) ?(ignore_sections = []) ic =
-  let failures = ref 0 in
+  let format_errors = ref [] in
   let rec check_and_read buf ic pos =
     try
       let line = input_line ic in
       List.iter
         (fun (regexp, msg) ->
-          if Str.string_match regexp line 0 then (
-            Printf.printf "Line %n: %s\n" pos msg;
-            failures := !failures + 1)
+          if Str.string_match regexp line 0 then
+            format_errors := (pos, msg) :: !format_errors
           else ())
         fail_fmt_patterns;
       Buffer.add_string buf line;
@@ -53,7 +101,8 @@ let lint ?(include_sections = []) ?(ignore_sections = []) ic =
     | e -> raise e
   in
   let s = check_and_read (Buffer.create 1024) ic 1 in
-  if !failures > 0 then false
+  if List.length !format_errors > 0 then
+    Format_error (List.sort (fun (x, _) (y, _) -> compare x y) !format_errors)
   else
     (* parse and without output to sanity check *)
     try
@@ -62,33 +111,9 @@ let lint ?(include_sections = []) ?(ignore_sections = []) ic =
       let _ =
         List.map Aggregate.of_weekly (List.of_seq (Hashtbl.to_seq_values okrs))
       in
-      true
+      No_error
     with
-    | Aggregate.No_time_found s ->
-        Printf.printf
-          "No time entry found. Each KR must be followed by '- @... (x days)\n\
-           Error: %s\n"
-          s;
-        false
-    | Aggregate.Invalid_time s ->
-        Printf.printf
-          "Invalid time entry found. Format is '- @eng1 (x days), @eng2 (x \
-           days)'\n\
-           Error: %s\n"
-          s;
-        false
-    | Aggregate.Multiple_time_entries s ->
-        Printf.printf
-          "KR with multiple time entries found. Only one time entry should \
-           follow immediately after the KR.\n\
-           Error: %s\n"
-          s;
-        false
-    | Aggregate.No_work_found s ->
-        Printf.printf
-          "No work items found. This may indicate an unreported parsing error. \
-           Remove the KR if it is without work.\n\
-           Error: %s\n"
-          s;
-        false
-(* read into buffer while checking formatting, then send final string to omd for parsing and sanity checks *)
+    | Aggregate.No_time_found s -> No_time_found s
+    | Aggregate.Invalid_time s -> Invalid_time s
+    | Aggregate.Multiple_time_entries s -> Multiple_time_entries s
+    | Aggregate.No_work_found s -> No_work_found s

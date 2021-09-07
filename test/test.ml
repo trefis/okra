@@ -14,4 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-let () = Alcotest.run "Okra" [ ("Calendar", Test_calendar.tests) ]
+let () =
+  Alcotest.run "Okra"
+    [ ("Calendar", Test_calendar.tests); ("Lint", Test_lint.tests) ]
