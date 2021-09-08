@@ -17,6 +17,10 @@
 
 exception No_time_found of string
 exception Multiple_time_entries of string
+exception Invalid_time of string
+exception No_work_found of string
+exception No_KR_ID_found of string
+exception No_title_found of string
 
 type t = {
   counter : int;
@@ -43,7 +47,11 @@ end
 
 val process :
   ?ignore_sections:string list ->
+  ?include_sections:string list ->
   (string * string) list Omd.block list ->
   Weekly.table
+(** Process markdown data from omd. Optionally [ignore_sections] can be used to
+    ignore specific sections, or [include_sections] can be used to only process
+    specific sections. *)
 
 val of_weekly : Weekly.t -> t

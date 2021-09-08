@@ -1,5 +1,5 @@
 (*
- * Copyright (c) 2021 Magnus Skjegstad
+ * Copyright (c) 2021 Magnus Skjegstad <magnus@skjegstad.com>
  * Copyright (c) 2021 Thomas Gazagnaire <thomas@gazagnaire.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -20,8 +20,17 @@ open Omd
 let hashtbl_keys ht =
   List.sort_uniq String.compare (List.of_seq (Hashtbl.to_seq_keys ht))
 
-exception No_time_found of string
-exception Multiple_time_entries of string
+exception No_time_found of string (* Record found without a time record *)
+
+exception Invalid_time of string (* Time record found, but has errors *)
+
+exception No_work_found of string (* No work items found under KR *)
+
+exception Multiple_time_entries of string (* More than one time entry found *)
+
+exception No_KR_ID_found of string (* Empty or no KR ID *)
+
+exception No_title_found of string (* No title found *)
 
 (* Type for sanitized post-ast version *)
 type t = {
@@ -172,9 +181,18 @@ let obj_re = Str.regexp "\\(.+\\) (\\([a-zA-Z ]+\\))$"
 
 let new_okr_re = obj_re
 
-let check_valid_time_block = function
+let is_time_block = function
   | [ Paragraph (_, Text (_, s)) ] -> String.get (String.trim s) 0 = '@'
   | _ -> false
+
+let time_block_is_sane s =
+  let regexp = Str.regexp "^@[a-zA-Z0-9-]+[ ]+([0-9.]+ day[s]?)$" in
+  let pieces = String.split_on_char ',' (String.trim s) in
+  List.for_all
+    (fun s ->
+      let s = String.trim s in
+      Str.string_match regexp s 0)
+    pieces
 
 let is_suffix suffix s =
   String.length s >= String.length suffix
@@ -279,15 +297,15 @@ let block_okr = function
       | None -> [ KR okr_title; KR_title okr_title ]
       | Some (title, id) -> [ KR okr_title; KR_title title; KR_id id ])
   | List (_, _, _, bls) ->
-      if List.length (List.filter check_valid_time_block bls) > 1 then
+      if List.length (List.filter is_time_block bls) > 1 then
         (* This is fatal, as we can miss tracked time if this occurs
             -- time should always be summarised in first entry *)
         raise (Multiple_time_entries "Multiple time entries found")
       else ();
       let tb = List.hd bls in
       (* Assume first block is time if present, and ... *)
-      if check_valid_time_block tb then
-        (* verify that this is true *)
+      if is_time_block tb then
+        (* todo verify that this is true *)
         let time_s =
           String.concat "" (List.map (fun xs -> String.concat "" (block xs)) tb)
         in
@@ -311,14 +329,16 @@ type state = {
   mutable current_proj : string;
   mutable current_counter : int;
   ignore_sections : string list;
+  include_sections : string list;
 }
 
-let init ?(ignore_sections = []) () =
+let init ?(ignore_sections = []) ?(include_sections = []) () =
   {
-    current_o = "None";
-    current_proj = "Unknown";
+    current_o = "";
+    current_proj = "";
     current_counter = 0;
     ignore_sections;
+    include_sections;
   }
 
 let process_okr_block t ht hd tl =
@@ -341,10 +361,6 @@ let process_okr_block t ht hd tl =
         List.map
           (fun xs ->
             let okr_list = List.concat (List.map block_okr xs) in
-            (*if List.length okr_list = 3 then
-                 okr_list
-               else (* return empty list if it doesn't include Time/Work/OKR *)
-                 okr_list) bls in*)
             if
               List.length t.ignore_sections == 0
               || (* ignore if proj or obj is in ignore_sections *)
@@ -357,11 +373,24 @@ let process_okr_block t ht hd tl =
                       (String.uppercase_ascii t.current_o)
                       t.ignore_sections)
             then
-              store_result ht
-                ([
-                   Proj t.current_proj; O t.current_o; Counter t.current_counter;
-                 ]
-                @ okr_list)
+              if
+                List.length t.include_sections == 0
+                (* only include if proj or obj is in include_sections *)
+                || List.mem
+                     (String.uppercase_ascii t.current_proj)
+                     t.include_sections
+                || List.mem
+                     (String.uppercase_ascii t.current_o)
+                     t.include_sections
+              then
+                store_result ht
+                  ([
+                     Proj t.current_proj;
+                     O t.current_o;
+                     Counter t.current_counter;
+                   ]
+                  @ okr_list)
+              else ()
             else ())
           bls
       in
@@ -386,9 +415,11 @@ let rec process t ht ast =
   | hd :: tl -> process t ht (process_entry t ht hd tl)
   | [] -> ()
 
-let process ?(ignore_sections = [ "OKR Updates" ]) ast =
-  let u = List.map String.uppercase_ascii ignore_sections in
-  let state = init ~ignore_sections:u () in
+let process ?(ignore_sections = [ "OKR Updates" ]) ?(include_sections = []) ast
+    =
+  let u_ignore = List.map String.uppercase_ascii ignore_sections in
+  let u_include = List.map String.uppercase_ascii include_sections in
+  let state = init ~ignore_sections:u_ignore ~include_sections:u_include () in
   let store = Hashtbl.create 100 in
   process state store ast;
   store
@@ -434,6 +465,10 @@ let of_weekly okr_list =
           | Time t_ ->
               (* Store the string entry to be able to check correctness later *)
               okr_time_entries := !okr_time_entries @ [ t_ ];
+              (* check that time block makes sense *)
+              if not (time_block_is_sane t_) then
+                raise (Invalid_time (Fmt.str "Time record is invalid: %s" t_))
+              else ();
               (* split on @, then extract first word and any float after *)
               let t_split = Str.split (Str.regexp "@+") t_ in
               List.iter
@@ -480,6 +515,29 @@ let of_weekly okr_list =
                 elements))
          okr_list)
   in
+
+  (* Some basic sanity checking *)
+  if List.length work == 0 then
+    raise
+      (No_work_found (Fmt.str "KR with ID %s is without work items" !okr_kr_id))
+  else ();
+
+  if String.length (String.trim !okr_kr_id) == 0 then
+    raise
+      (No_KR_ID_found
+         (Fmt.str "No KR ID found for \"%s\" (under objective %s)" !okr_kr_title
+            !okr_obj))
+  else ();
+
+  if
+    String.length (String.trim !okr_proj) == 0
+    || String.length (String.trim !okr_obj) == 0
+  then
+    raise
+      (No_title_found
+         (Fmt.str "No title for project or objective found for \"%s\""
+            !okr_kr_title))
+  else ();
 
   (* Construct final entry *)
   {
