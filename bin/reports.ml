@@ -72,8 +72,14 @@ let report_team_md ?(include_krs = []) ?(show_time = true)
             else (
               (* show total time for each engineer *)
               Printf.printf "    - ";
+              let first = ref true in
               Hashtbl.iter
-                (fun s v -> Printf.printf "@%s (%.2f days) " s v)
+                (fun s v -> 
+                  if (not !first) then (
+                    Printf.printf ", ")
+                  else (
+                    first := false);
+                  Printf.printf "@%s (%.2f days)" s v)
                 e.time_per_engineer;
               Printf.printf "\n")
           else (
