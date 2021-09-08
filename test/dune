@@ -1,3 +1,5 @@
 (test
  (name test)
+ (deps
+  (source_tree lint))
  (libraries alcotest okra))
