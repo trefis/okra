@@ -40,7 +40,7 @@ let show_time_calc_term =
          entry found with a sum at the end. This is useful for debugging when \
          aggregating reports for multiple weeks."
   in
-  Arg.value (Arg.opt Arg.bool true info)
+  Arg.value (Arg.opt Arg.bool false info)
 
 let show_engineers_term =
   let info =
@@ -78,7 +78,7 @@ let engineer_term =
     Arg.info [ "engineer"; "e" ]
       ~doc:
         "Aggregate engineer reports. This is an alias for \
-         --include-sections=\"last week\", --ignore-sections=\"\", --show-time-calc=false"
+         --include-sections=\"last week\", --ignore-sections=\"\""
   in
   Arg.value (Arg.flag info)
 
@@ -104,7 +104,7 @@ let term =
       if engineer then
         {
           show_time;
-          show_time_calc = false;
+          show_time_calc;
           show_engineers;
           include_krs;
           ignore_sections = [];
