@@ -73,6 +73,24 @@ let include_krs_term =
   in
   Arg.value (Arg.opt (Arg.list Arg.string) [] info)
 
+let engineer_term =
+  let info =
+    Arg.info [ "engineer"; "e" ]
+      ~doc:
+        "Aggregate engineer reports. This is an alias for \
+         --include-sections=\"last week\", --ignore-sections=\"\", --show-time-calc=false"
+  in
+  Arg.value (Arg.flag info)
+
+let team_term =
+  let info =
+    Arg.info [ "team"; "t" ]
+      ~doc:
+        "Aggregate team reports. This is an alias for --include-sections=\"\", \
+         --ignore-sections=\"OKR updates\""
+  in
+  Arg.value (Arg.flag info)
+
 let run conf =
   let md = Omd.of_channel stdin in
   let okrs = Okra.Aggregate.process ~ignore_sections:conf.ignore_sections ~include_sections:conf.include_sections md in
@@ -81,16 +99,35 @@ let run conf =
     ~include_krs:conf.include_krs okrs
 
 let term =
-  let cat show_time show_time_calc show_engineers include_krs ignore_sections include_sections =
-    let conf =
-      {
-        show_time;
-        show_time_calc;
-        show_engineers;
-        include_krs;
-        ignore_sections;
-        include_sections;
-      }
+  let cat show_time show_time_calc show_engineers include_krs ignore_sections include_sections team engineer =
+    let conf = 
+      if engineer then
+        {
+          show_time;
+          show_time_calc = false;
+          show_engineers;
+          include_krs;
+          ignore_sections = [];
+          include_sections = ["Last week"];
+        }
+      else if team then
+        {
+          show_time;
+          show_time_calc;
+          show_engineers;
+          include_krs;
+          ignore_sections = ["OKR Updates"];
+          include_sections = [];
+        }
+      else 
+        {
+          show_time;
+          show_time_calc;
+          show_engineers;
+          include_krs;
+          ignore_sections;
+          include_sections;
+        }
     in
     run conf
   in
@@ -102,6 +139,8 @@ let term =
     $ include_krs_term
     $ ignore_sections_term
     $ include_sections_term
+    $ team_term
+    $ engineer_term
 )
 
 let cmd =
