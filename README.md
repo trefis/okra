@@ -1,32 +1,203 @@
 OKR report aggregation tool
 =======
 
-Prototype aggregation tool for markdown-based OKR reports. This is work in progress.
+Prototype aggregation tool and library for markdown-based OKR reports. This is work in progress.
 
-## Running it
+The tool currently supports generating weekly report stubs based on Github acitivity (`okra generate --week=xx`), grouping data from reports per KR (`okra cat ...`) and linting existing reports to catch formatting errors (`okra lint ..`).
+
+Each command is described in more detail below.
+
+## Generating weekly engineer reports
+
+A weekly report based on Github activity can be generated using the `okra generate` command. Under the hood it is using [talex5/get-activity](https://github.com/talex5/get-activity) with added markdown formatting.
+
+The output looks like this:
+
+```
+$ okra generate --week=30
+# Projects
+
+- Improve OKRA (OKRA1)
+
+# Last Week
+
+- Improve OKRA (OKRA1)
+  - @MagnusS (<X> days)
+  - Work Item 1
+
+# Activity (move these items to last week)
+
+  - Add output tests [#4](https://github.com/MagnusS/okra/issues/4)
+  - Add support for including only specified KR IDs [#5](https://github.com/MagnusS/okra/issues/5)
+```
+
+To prepare the final report, the work items under `Activity` should be moved to `Last week` under the right KR and time should be added. Additional information can also be added here.
+
+```
+# Projects
+
+- Improve OKRA (OKRA1)
+
+# Last Week
+
+- Improve OKRA (OKRA1)
+  - @MagnusS (0.5 day)
+  - Add output tests [#4](https://github.com/MagnusS/okra/issues/4)
+  - Add support for including only specified KR IDs [#5](https://github.com/MagnusS/okra/issues/5)
+  - Meetings
+```
+
+Check correct formatting before submitting the report:
+
+```
+$ okra lint --engineer report.md
+```
+
+### Configuration
+
+To generate reports this subcommand requires a Github token stored in `~/.github/github-activity-token` to be able to access your activity. New tokens can be added in your Github profile [here](https://github.com/settings/tokens). The token should only have read access - if you just want to show public activity it doesn't need access to any additional scopes. For more details, see [talex5/get-activity](https://github.com/talex5/get-activity).
+
+A list of projects you are working on can be provided in the configuration file in `~/.okra/conf.yaml`, for example:
+
+```
+projects:
+  - "Improve OKRA (OKRA1)"
+```
+
+## Aggregating reports
+
+`okra cat` can be used to aggregate weekly engineer or team reports in a single report. The tool will attempt to group data by project, objective and KR if these match.
 
 The code reads data from stdin, aggregates per KR and outputs the result.
 
-Example:
+If there are unexpected warnings or errors use `okra lint` to identify and fix them.
+
+When `--engineer` is specified, only the `Last Week` section from each report is used for input. This is useful for aggregating reports from individual engineers into a team report.
 
 ```
-# cat okr-report1.md okr-report2.md | okra cat | less
+$ cat magnus.md patrick.md | okra cat --engineer
+# Last Week
+
+## Last Week
+
+- Improve OKRA (OKRA1)
+    - @MagnusS (0.50 days), @patricoferris (0.50 days)
+    - Add output tests [#4](https://github.com/MagnusS/okra/issues/4)
+    - Add support for including only specified KR IDs [#5](https://github.com/MagnusS/okra/issues/5)
+    - Meetings
+    - Fixing mdx
 ```
 
-If there are warnings that are not expected (i.e not about the "OKR updates" section), they should be manually resolved. There's also a script that handles some common formatting issues by fixing indents, bulletpoints etc (fmt.sh). To use it:
+If `--team` is specified, everything except what is listed under `OKR Updates` is included. This is useful for aggregating reports from multiple teams (or over multiple weeks).
 
 ```
-# cat okr-report1.md okr-report2.md | ./fmt.sh | okra cat | less
+$ cat team1.md team2.md | okra cat --team
+# MirageOS
+
+## My objective
+
+- Improve OKRA (OKRA1)
+    - @MagnusS (2.00 days), @patricoferris (4.00 days)
+    - Fixing lint
+    - More work on parser
+
+- Other work (KR123)
+    - @Engineer1 (2.50 days)
+    - Implemented the feature
 ```
 
-Several options are available for modifying the output format, see `okra cat --help` for details. Sections can optionally be ignored and removed from the final output ("OKR updates" is ignored by default).
+When aggregating multiple reports `--show-time-calc` can be used to show time calculations to help with debugging:
+```
+$ cat report.md report2.md | okra cat --engineer --show-time-calc=true
+[...]
+- Improve OKRA (OKRA1)
+    - + @MagnusS (0.5 day)
+    - + @patricoferris (0.5 day)
+    - = @MagnusS (0.50 days) @patricoferris (0.50 days)
+    ...
+```
 
-## Report format
 
-The expected report format:
+Several other options are available for modifying the output format, see `okra cat --help` for details. For example, only specific KRs can be included with `--include-krs=KR123`. Time can optionally be removed with `--show-time=false`. Sections can be ignored and removed from the final output using `--ignore-sections`.
+
+## Linting reports
+
+`okra lint` can be used to check reports for errors. The linter will run in two phases, first checking for formatting errors then by parsing the markdown looking for inconsistencies.
+
+For formatting errors, each error is listed with a line number and explanation. When a parsing error is found the tool will terminate and display the error with a possible solution. If an error is found, the command will exit with a non-zero exit code.
+
+Formatting errors will look like this:
+```
+$ okra lint --engineer report.md
+Error(s) in file report.md:
+
+Line 7: * used as bullet point, this can confuse the parser. Only use - as bullet marker.
+1 formatting errors found. Parsing aborted.
+```
+
+When encountering parsing errors:
+
+```
+$ okra lint --engineer report.md
+Error(s) in file report.md:
+
+Invalid time entry found. Format is '- @eng1 (x days), @eng2 (x days)'
+Error: Time record is invalid: (MagnusS 0.5 day)
+```
+
+We currently support two types of reports; team report and engineer report. These can be specified with `--team` and `--engineer` respectively. The main difference is which sections are included or ignored in the report (see `okra lint --help` for details).
+
+```
+$ okra lint --engineer report.md
+```
+
+or 
+
+```
+$ okra lint --team report.md
+```
+
+
+
+## Report formats
+
+These are the formats currently recognised by the tool.
+
+General formatting requirements:
+- Only use '-' for bullet points
+- Use space for indentation (2 preferred)
+
+### Engineer weekly
+
+Engineer reports should be in the following format. Only a section called `Last week` is included by default - the rest is free form as long as it's valid markdown:
+
+```
+# Projects
+
+- My KR (KR123)
+
+# Last week
+
+- My KR (KR123)
+  - @engineer1 (1 day)
+  - Work item 1
+
+# Notes
+...
+```
+
+The `okra generate --week=xx` command can be used to generate a stub for this report based on your Github activity and a template. To verify formatting, use `okra lint --engineer`.
+
+### Team activity report
+
+The expected team report format is similar, but here every section is parsed and multiple engineers may have worked on each KR. Any section called `OKR Updates` is ignored by default and may be used to propose KR changes.
 
 ```
 # Project
+
+## OKR updates
+
+[ignored]
 
 ## Objective
 
@@ -37,18 +208,7 @@ The expected report format:
   - work item 2
 ```
 
-The tool will attempt to group data by project, objective and KR if these match.
-
-## Fixing warnings
-
-Exceptions with warnings will be raised if the tool is unable to locate the engineer time in a section. This can be because it doesn't follow the defined format (e.g. it is valid, but something else) or it can have accidental formatting errors. You should always resolve warnings to make sure that the returned result is correct.
-
-Some issues that cause warnings:
-
-  - Sections/Headlines that contain other data, such as OKR updates. This is usually fine, and if the section is given the heading "OKR updates" it will automatically be ignored from the warnings.
-  - Inconsistent bulletpoint formatting. If switching between different bulletpoint markers (such as +, - and asterisk) in the same list, the parser `omd` can become confused. Fix this by always using `-`.
-  - Inconsistent indent. If the indent for bulletpoints is only a space (instead of two or a tab) the parse can be confused. Similarly if it switches between tabs and spaces.
-  - The OKR line is not followed by a line of engineer-time, with each name prefixed by '@' -- sometimes the '@' is forgotten.
+The `okra cat` command can be used to aggregate multiple engineer reports into one team report grouped by KR.
 
 ## Okra Configuration File
 
