@@ -52,8 +52,8 @@ let include_sections_term =
   let info =
     Arg.info [ "include-sections" ]
       ~doc:
-        "If non-empty, only aggregate entries under these sections - everything \
-         else is ignored."
+        "If non-empty, only aggregate entries under these sections - \
+         everything else is ignored."
   in
   Arg.value (Arg.opt (Arg.list Arg.string) [] info)
 
@@ -93,14 +93,18 @@ let team_term =
 
 let run conf =
   let md = Omd.of_channel stdin in
-  let okrs = Okra.Aggregate.process ~ignore_sections:conf.ignore_sections ~include_sections:conf.include_sections md in
+  let okrs =
+    Okra.Aggregate.process ~ignore_sections:conf.ignore_sections
+      ~include_sections:conf.include_sections md
+  in
   Reports.report_team_md ~show_time:conf.show_time
     ~show_time_calc:conf.show_time_calc ~show_engineers:conf.show_engineers
     ~include_krs:conf.include_krs okrs
 
 let term =
-  let cat show_time show_time_calc show_engineers include_krs ignore_sections include_sections team engineer =
-    let conf = 
+  let cat show_time show_time_calc show_engineers include_krs ignore_sections
+      include_sections team engineer =
+    let conf =
       if engineer then
         {
           show_time;
@@ -108,7 +112,7 @@ let term =
           show_engineers;
           include_krs;
           ignore_sections = [];
-          include_sections = ["Last week"];
+          include_sections = [ "Last week" ];
         }
       else if team then
         {
@@ -116,10 +120,10 @@ let term =
           show_time_calc;
           show_engineers;
           include_krs;
-          ignore_sections = ["OKR Updates"];
+          ignore_sections = [ "OKR Updates" ];
           include_sections = [];
         }
-      else 
+      else
         {
           show_time;
           show_time_calc;
@@ -140,8 +144,7 @@ let term =
     $ ignore_sections_term
     $ include_sections_term
     $ team_term
-    $ engineer_term
-)
+    $ engineer_term)
 
 let cmd =
   let info =
