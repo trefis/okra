@@ -20,6 +20,7 @@ type t = {
   show_time_calc : bool;
   show_engineers : bool;
   ignore_sections : string list;
+  include_sections : string list;
   include_krs : string list;
 }
 
@@ -47,6 +48,15 @@ let show_engineers_term =
   in
   Arg.value (Arg.opt Arg.bool true info)
 
+let include_sections_term =
+  let info =
+    Arg.info [ "include-sections" ]
+      ~doc:
+        "If non-empty, only aggregate entries under these sections - everything \
+         else is ignored."
+  in
+  Arg.value (Arg.opt (Arg.list Arg.string) [] info)
+
 let ignore_sections_term =
   let info =
     Arg.info [ "ignore-sections" ]
@@ -65,13 +75,13 @@ let include_krs_term =
 
 let run conf =
   let md = Omd.of_channel stdin in
-  let okrs = Okra.Aggregate.process ~ignore_sections:conf.ignore_sections md in
+  let okrs = Okra.Aggregate.process ~ignore_sections:conf.ignore_sections ~include_sections:conf.include_sections md in
   Reports.report_team_md ~show_time:conf.show_time
     ~show_time_calc:conf.show_time_calc ~show_engineers:conf.show_engineers
     ~include_krs:conf.include_krs okrs
 
 let term =
-  let cat show_time show_time_calc show_engineers include_krs ignore_sections =
+  let cat show_time show_time_calc show_engineers include_krs ignore_sections include_sections =
     let conf =
       {
         show_time;
@@ -79,6 +89,7 @@ let term =
         show_engineers;
         include_krs;
         ignore_sections;
+        include_sections;
       }
     in
     run conf
@@ -89,7 +100,9 @@ let term =
     $ show_time_calc_term
     $ show_engineers_term
     $ include_krs_term
-    $ ignore_sections_term)
+    $ ignore_sections_term
+    $ include_sections_term
+)
 
 let cmd =
   let info =
