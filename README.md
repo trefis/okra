@@ -3,9 +3,17 @@ OKR report aggregation tool
 
 Prototype aggregation tool and library for markdown-based OKR reports. This is work in progress.
 
-The tool currently supports generating weekly report stubs based on Github acitivity (`okra generate --week=xx`), grouping data from reports per KR (`okra cat ...`) and linting existing reports to catch formatting errors (`okra lint ..`).
+The tool currently supports generating weekly report stubs based on Github activity (`okra generate --week=xx`), grouping data from reports per KR (`okra cat ...`) and linting existing reports to catch formatting errors (`okra lint ..`).
 
 Each command is described in more detail below.
+
+## Installation
+
+With opam:
+
+```
+$ opam pin okra https://github.com/MagnusS/okra.git
+```
 
 ## Generating weekly engineer reports
 
@@ -47,7 +55,7 @@ To prepare the final report, the work items under `Activity` should be moved to 
   - Meetings
 ```
 
-Check correct formatting before submitting the report:
+You can also check that the final formatting is correct before submitting the report:
 
 ```
 $ okra lint --engineer report.md
