@@ -8,16 +8,24 @@
 (maintainers "magnus@skjegstad.com")
 
 (package
+ (name okra-bin)
+ (synopsis "Report parsing executable")
+ (description "An executable to be used for report parsing")
+ (depends
+  okra
+  cmdliner
+  bos
+  (yaml (>= 3.0))
+  (cohttp-lwt-unix (>= 4.0.0))))
+
+(package
  (name okra)
  (synopsis "Report parsing prototypes")
- (description "")
+ (description "A library of tools for report parsing")
  (depends
   (ocaml (>= 4.07))
   (alcotest :with-test)
   fmt
-  cmdliner
-  bos
   get-activity
   calendar
-  (yaml (>= 3.0))
   (omd (>= 2.0))))
