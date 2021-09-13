@@ -12,6 +12,7 @@
  (synopsis "Report parsing executable")
  (description "An executable to be used for report parsing")
  (depends
+  (alcotest :with-test)
   okra
   cmdliner
   bos
