@@ -33,5 +33,5 @@ build: [
   ]
 ]
 pin-depends: [
-  ["get-activity.dev" "git+https://github.com/patricoferris/get-activity#1ef19055b27c46e3fc7e27acfed9ab83bd423d8a"]
+  ["get-activity.dev" "git+https://github.com/patricoferris/get-activity#5c20e0200e927a3dc85eb9980d63a25bbaf502da"]
 ]

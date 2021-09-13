@@ -1,4 +1,4 @@
 (executable
  (name main)
  (public_name okra)
- (libraries okra cmdliner bos yaml))
+ (libraries okra cmdliner bos yaml cohttp-lwt-unix))

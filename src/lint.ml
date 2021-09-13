@@ -98,6 +98,46 @@ let string_of_result res =
            s));
   Buffer.contents buf
 
+(* TODO: pull out the shared code from lint_string_list and lint *)
+let lint_string_list ?(include_sections = []) ?(ignore_sections = []) s =
+  let format_errors = ref [] in
+  let rec check_and_read buf pos = function
+    | [] -> Buffer.contents buf
+    | line :: lines -> (
+        try
+          List.iter
+            (fun (regexp, msg) ->
+              if Str.string_match regexp line 0 then
+                format_errors := (pos, msg) :: !format_errors
+              else ())
+            fail_fmt_patterns;
+          Buffer.add_string buf line;
+          Buffer.add_string buf "\n";
+          check_and_read buf (pos + 1) lines
+        with
+        | End_of_file -> Buffer.contents buf
+        | e -> raise e)
+  in
+  let s = check_and_read (Buffer.create 1024) 1 s in
+  if List.length !format_errors > 0 then
+    Format_error (List.sort (fun (x, _) (y, _) -> compare x y) !format_errors)
+  else
+    (* parse and without output to sanity check *)
+    try
+      let md = Omd.of_string s in
+      let okrs = Aggregate.process ~include_sections ~ignore_sections md in
+      let _ =
+        List.map Aggregate.of_weekly (List.of_seq (Hashtbl.to_seq_values okrs))
+      in
+      No_error
+    with
+    | Aggregate.No_time_found s -> No_time_found s
+    | Aggregate.Invalid_time s -> Invalid_time s
+    | Aggregate.Multiple_time_entries s -> Multiple_time_entries s
+    | Aggregate.No_work_found s -> No_work_found s
+    | Aggregate.No_KR_ID_found s -> No_KR_ID_found s
+    | Aggregate.No_title_found s -> No_title_found s
+
 let lint ?(include_sections = []) ?(ignore_sections = []) ic =
   let format_errors = ref [] in
   let rec check_and_read buf ic pos =
