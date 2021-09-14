@@ -475,7 +475,8 @@ let of_weekly okr_list =
                 (fun s ->
                   match
                     Str.string_match
-                      (Str.regexp "^\\([a-zA-Z0-9-]+\\)[^0-9]+\\([0-9.]+\\)")
+                      (Str.regexp
+                         "^\\([a-zA-Z0-9-]+\\)[ ]+(\\([0-9.]+\\) day[s]?)")
                       s 0
                   with
                   | false -> ()
