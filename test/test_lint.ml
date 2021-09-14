@@ -36,6 +36,14 @@ let test_invalid_time f () =
         (Fmt.str "Invalid result in file %s:\n%s" f
            (Okra.Lint.string_of_result x))
 
+let test_valid_time f () =
+  match lint_file f with
+  | Okra.Lint.No_error -> Alcotest.(check pass) "" 0 0
+  | x ->
+      Alcotest.fail
+        (Fmt.str "Invalid result in file %s:\n%s" f
+           (Okra.Lint.string_of_result x))
+
 let test_no_time_found f () =
   match lint_file f with
   | Okra.Lint.No_time_found _ -> Alcotest.(check pass) "" 0 0
@@ -136,4 +144,5 @@ let tests =
     ("Invalid_time", `Quick, test_invalid_time "./lint/invalid-time1.rej");
     ("Invalid_time", `Quick, test_invalid_time "./lint/invalid-time2.rej");
     ("Invalid_time", `Quick, test_invalid_time "./lint/invalid-time3.rej");
+    ("Valid_time", `Quick, test_valid_time "./lint/valid-time1.acc");
   ]
