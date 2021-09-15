@@ -14,12 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-type conf
-(** Configuration for get-activity *)
-
-val make_conf : string -> conf
-(** [make token] constructs a new configuration using the [token] *)
-
 type t
 (** The type for your weekly activity *)
 
@@ -29,12 +23,3 @@ val make : projects:string list -> Get_activity.Contributions.t -> t
 val pp : t Fmt.t
 (** [pp ppf activity] formats a weekly activity into a template that needs some
     editing to get it into the correct format. *)
-
-val run :
-  cal:Calendar.t ->
-  projects:string list ->
-  conf ->
-  (t, [ `Msg of string ]) Lwt_result.t
-(** [run ~cal ~projects conf] produces an activity report for the week and year
-    specified by [cal] using the configuration [conf]. The [projects] should be
-    a list of KRs formatted as [<kr-title> (<kr-id>)] *)

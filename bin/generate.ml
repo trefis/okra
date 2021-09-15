@@ -67,12 +67,16 @@ let get_or_error = function
       Fmt.epr "%s" m;
       exit 1
 
-let run cal projects conf =
-  let open Lwt_result.Infix in
-  let res =
-    Lwt_main.run (Activity.run ~cal ~projects conf >|= Fmt.pr "%a" Activity.pp)
+module Fetch = Get_activity.Contributions.Fetch (Cohttp_lwt_unix.Client)
+
+let run cal projects token =
+  let period = Calendar.github_week cal in
+  let activity =
+    Lwt_main.run (Fetch.exec ~period ~token)
+    |> Get_activity.Contributions.of_json ~from:(fst period)
   in
-  get_or_error res
+  let activity = Activity.make ~projects activity in
+  Fmt.pr "%a" Activity.pp activity
 
 let term =
   let make_with_file cal okra_file token_file =
@@ -82,8 +86,7 @@ let term =
       | false -> Conf.default
       | true -> get_or_error @@ Conf.load okra_file
     in
-    let conf = Activity.make_conf token in
-    run cal (Conf.projects okra_conf) conf
+    run cal (Conf.projects okra_conf) token
   in
   Term.(const make_with_file $ calendar_term $ Conf.cmdliner $ token)
 

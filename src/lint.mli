@@ -1,5 +1,6 @@
 (*
  * Copyright (c) 2021 Magnus Skjegstad <magnus@skjegstad.com>
+ * Copyright (c) 2021 Patrick Ferris <pf341@patricoferris.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -23,6 +24,12 @@ type lint_result =
   | No_work_found of string
   | No_KR_ID_found of string
   | No_title_found of string
+
+val lint_string_list :
+  ?include_sections:string list ->
+  ?ignore_sections:string list ->
+  string list ->
+  lint_result
 
 val lint :
   ?include_sections:string list ->

@@ -1,5 +1,6 @@
 (*
  * Copyright (c) 2021 Magnus Skjegstad <magnus@skjegstad.com>
+ * Copyright (c) 2021 Patrick Ferris <pf341@patricoferris.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -98,17 +99,53 @@ let string_of_result res =
            s));
   Buffer.contents buf
 
+(* Check a single line for formatting errors returning 
+   a list of error messages with the position *)
+let check_line line pos =
+  List.fold_left
+    (fun acc (regexp, msg) ->
+      if Str.string_match regexp line 0 then (pos, msg) :: acc else acc)
+    [] fail_fmt_patterns
+
+(* Parse document as a string to check for aggregation errors
+   (assumes no formatting errors) *)
+let check_document ~include_sections ~ignore_sections s =
+  try
+    let md = Omd.of_string s in
+    let okrs = Aggregate.process ~include_sections ~ignore_sections md in
+    let _ =
+      List.map Aggregate.of_weekly (List.of_seq (Hashtbl.to_seq_values okrs))
+    in
+    No_error
+  with
+  | Aggregate.No_time_found s -> No_time_found s
+  | Aggregate.Invalid_time s -> Invalid_time s
+  | Aggregate.Multiple_time_entries s -> Multiple_time_entries s
+  | Aggregate.No_work_found s -> No_work_found s
+  | Aggregate.No_KR_ID_found s -> No_KR_ID_found s
+  | Aggregate.No_title_found s -> No_title_found s
+
+let lint_string_list ?(include_sections = []) ?(ignore_sections = []) s =
+  let format_errors = ref [] in
+  let rec check_and_read buf pos = function
+    | [] -> Buffer.contents buf
+    | line :: lines ->
+        format_errors := check_line line pos @ !format_errors;
+        Buffer.add_string buf line;
+        Buffer.add_string buf "\n";
+        check_and_read buf (pos + 1) lines
+  in
+  let s = check_and_read (Buffer.create 1024) 1 s in
+  if List.length !format_errors > 0 then
+    Format_error (List.sort (fun (x, _) (y, _) -> compare x y) !format_errors)
+  else check_document ~include_sections ~ignore_sections s
+
 let lint ?(include_sections = []) ?(ignore_sections = []) ic =
   let format_errors = ref [] in
   let rec check_and_read buf ic pos =
     try
       let line = input_line ic in
-      List.iter
-        (fun (regexp, msg) ->
-          if Str.string_match regexp line 0 then
-            format_errors := (pos, msg) :: !format_errors
-          else ())
-        fail_fmt_patterns;
+      format_errors := check_line line pos @ !format_errors;
       Buffer.add_string buf line;
       Buffer.add_string buf "\n";
       check_and_read buf ic (pos + 1)
@@ -119,19 +156,4 @@ let lint ?(include_sections = []) ?(ignore_sections = []) ic =
   let s = check_and_read (Buffer.create 1024) ic 1 in
   if List.length !format_errors > 0 then
     Format_error (List.sort (fun (x, _) (y, _) -> compare x y) !format_errors)
-  else
-    (* parse and without output to sanity check *)
-    try
-      let md = Omd.of_string s in
-      let okrs = Aggregate.process ~include_sections ~ignore_sections md in
-      let _ =
-        List.map Aggregate.of_weekly (List.of_seq (Hashtbl.to_seq_values okrs))
-      in
-      No_error
-    with
-    | Aggregate.No_time_found s -> No_time_found s
-    | Aggregate.Invalid_time s -> Invalid_time s
-    | Aggregate.Multiple_time_entries s -> Multiple_time_entries s
-    | Aggregate.No_work_found s -> No_work_found s
-    | Aggregate.No_KR_ID_found s -> No_KR_ID_found s
-    | Aggregate.No_title_found s -> No_title_found s
+  else check_document ~include_sections ~ignore_sections s

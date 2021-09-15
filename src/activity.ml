@@ -14,45 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-open Lwt.Infix
-
-module Gql = struct
-  type t = {
-    query : string;
-    variables : (string * Yojson.Safe.t) list option;
-    token : string;
-    endpoint : Uri.t;
-  }
-
-  let raw_fetch (k : t) =
-    let body =
-      `Assoc
-        (("query", `String k.query)
-         ::
-         (match k.variables with
-         | None -> []
-         | Some v -> [ ("variables", `Assoc v) ]))
-      |> Yojson.Safe.to_string
-      |> Cohttp_lwt.Body.of_string
-    in
-    let headers =
-      Cohttp.Header.init_with "Authorization" ("bearer " ^ k.token)
-    in
-    Cohttp_lwt_unix.Client.post ~headers ~body k.endpoint
-    >>= fun (resp, body) ->
-    Cohttp_lwt.Body.to_string body >|= fun body ->
-    match Cohttp.Response.status resp with
-    | `OK -> Ok body
-    | err ->
-        Fmt.error_msg "@[<v2>Error performing GraphQL query: %s@,%s@]"
-          (Cohttp.Code.string_of_status err)
-          body
-end
-
-type conf = { token : string }
-
-let make_conf token = { token }
-
 let pp_last_week username ppf projects =
   let pp_project ppf t =
     Fmt.pf ppf "- %s\n  - @%s (<X> days)\n  - Work Item 1" t username
@@ -88,23 +49,3 @@ let pp ppf { projects; activity = { username; activity } } =
 |}
     Fmt.(list (fun ppf s -> Fmt.pf ppf "- %s" s))
     projects (pp_last_week username) projects pp_activity activity
-
-let run ~cal ~projects { token } =
-  let from, to_ = Calendar.github_week cal in
-  let variables = [ ("from", `String from); ("to", `String to_) ] in
-  let fetch_params =
-    Gql.
-      {
-        query = Get_activity.Contributions.query;
-        variables = Some variables;
-        endpoint = Get_activity.Graphql.graphql_endpoint;
-        token;
-      }
-  in
-  Gql.raw_fetch fetch_params >|= Result.map Yojson.Safe.from_string
-  >>= fun json ->
-  match json with
-  | Ok json ->
-      let activity = Get_activity.Contributions.of_json ~from json in
-      Lwt.return (Ok { projects; activity })
-  | Error _ as e -> Lwt.return e
