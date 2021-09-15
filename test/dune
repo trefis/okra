@@ -1,5 +1,6 @@
 (test
  (name test)
  (deps
-  (source_tree lint))
+  (source_tree lint)
+  (source_tree aggregate))
  (libraries alcotest okra))

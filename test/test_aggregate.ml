@@ -1,5 +1,5 @@
 (*
- * Copyright (c) 2021 Patrick Ferris <pf341@patricoferris.com>
+ * Copyright (c) 2021 Magnus Skjegstad <magnus@skjegstad.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,10 +14,23 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-let () =
-  Alcotest.run "Okra"
-    [
-      ("Calendar", Test_calendar.tests);
-      ("Lint", Test_lint.tests);
-      ("Aggregate", Test_aggregate.tests);
-    ]
+let aggregate_by_engineer f =
+  let ic = open_in f in
+  let omd = Omd.of_channel ic in
+  let p = Okra.Aggregate.process omd in
+  let res = Okra.Aggregate.by_engineer p in
+  close_in ic;
+  res
+
+let test_time_parsing f () =
+  let res = aggregate_by_engineer f in
+  Alcotest.(check (float 0.0)) "eng1 time" 3.0 (Hashtbl.find res "eng1");
+  Alcotest.(check (float 0.0)) "eng3 time" 5.0 (Hashtbl.find res "eng3");
+  Alcotest.(check (float 0.0)) "eng4 time" 1.5 (Hashtbl.find res "eng4")
+
+let tests =
+  [
+    ( "Test_time_parsing",
+      `Quick,
+      test_time_parsing "./aggregate/valid-time1.acc" );
+  ]
