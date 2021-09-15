@@ -55,3 +55,6 @@ val process :
     specific sections. *)
 
 val of_weekly : Weekly.t -> t
+
+val by_engineer :
+  ?include_krs:string list -> Weekly.table -> (string, float) Hashtbl.t

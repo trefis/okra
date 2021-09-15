@@ -552,6 +552,25 @@ let of_weekly okr_list =
     work;
   }
 
+let ht_add_or_sum ht k v =
+  match Hashtbl.find_opt ht k with
+  | None -> Hashtbl.add ht k v
+  | Some x -> Hashtbl.replace ht k (Float.add v x)
+
+let by_engineer ?(include_krs = []) okrs =
+  let v = List.map of_weekly (List.of_seq (Hashtbl.to_seq_values okrs)) in
+  let uppercase_include_krs = List.map String.uppercase_ascii include_krs in
+  let result = Hashtbl.create 7 in
+  List.iter
+    (fun e ->
+      (* only proceed if include_krs is empty or has a match *)
+      if List.length include_krs == 0 || List.mem e.kr_id uppercase_include_krs
+      then
+        Hashtbl.iter (fun k w -> ht_add_or_sum result k w) e.time_per_engineer
+      else ()) (* skip this KR *)
+    v;
+  result
+
 module Unused = struct
   let _tim_re = Str.regexp "@\\([a-zA-Z0-9]+\\) (\\([0-9.]+\\) days?)$"
   (* @[github-handle] ([float] day/days) *)
