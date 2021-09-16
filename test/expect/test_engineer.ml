@@ -37,6 +37,31 @@ let activity =
         body = "Fixes another bug in Okra";
         url = "https://github.com/bactrian/okra/pull/43";
       };
+      {
+        repo = "bactrian/okra";
+        kind = `Issue;
+        date = "";
+        title = "There's a bug in Okra";
+        body = "A bad bug in Okra";
+        url = "https://github.com/bactrian/okra/issue/26";
+      };
+      {
+        repo = "bactrian/okra";
+        kind = `Review "APPROVED";
+        date = "";
+        title = "Fix another bug in Okra";
+        body = "Fixes another bug in Okra";
+        url =
+          "https://github.com/bactrian/okra/pull/43#pullrequestreview-123456789";
+      };
+      {
+        repo = "bactrian/okra-web";
+        kind = `New_repo;
+        date = "";
+        title = "Web";
+        body = "Web";
+        url = "https://github.com/bactrian/okra-web";
+      };
     ]
   in
   let (activity : item list Repo_map.t) =
