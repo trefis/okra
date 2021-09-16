@@ -9,11 +9,13 @@ Each command is described in more detail below.
 
 ## Installation
 
-With opam:
+With opam (remove existing okra-related pins first):
 
 ```
-$ opam pin okra https://github.com/MagnusS/okra.git
+$ opam pin -y https://github.com/MagnusS/okra.git
 ```
+
+This should install two packages; `okra` and `okra-bin`.
 
 ## Generating weekly engineer reports
 
@@ -64,6 +66,8 @@ $ okra lint --engineer report.md
 ### Configuration
 
 To generate reports this subcommand requires a Github token stored in `~/.github/github-activity-token` to be able to access your activity. New tokens can be added in your Github profile [here](https://github.com/settings/tokens). The token should only have read access - if you just want to show public activity it doesn't need access to any additional scopes. For more details, see [talex5/get-activity](https://github.com/talex5/get-activity).
+
+If you get an HTTPS error while downloading the Github activity, TLS support is probably not compiled into cohttp/conduit. `opam install tls` should fix this.
 
 A list of projects you are working on can be provided in the configuration file in `~/.okra/conf.yaml`, for example:
 
