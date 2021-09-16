@@ -220,6 +220,10 @@ The expected team report format is similar, but here every section is parsed and
   - work item 2
 ```
 
+KR ID should consist of characters followed by a number (e.g. "KR123").
+
+If the KR doesn't have a KR ID yet (e.g. it was requested in the OKR updates section), "new KR" is recognised by the parser as a placeholder and can be used instead. If a KR with the same name is found with a proper KR ID later they will be combined.
+
 The `okra cat` command can be used to aggregate multiple engineer reports into one team report grouped by KR.
 
 ## Okra Configuration File
