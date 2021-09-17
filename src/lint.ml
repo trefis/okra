@@ -46,60 +46,50 @@ let fail_fmt_patterns =
 
 let string_of_result res =
   let buf = Buffer.create 16 in
+  let ppf = Fmt.with_buffer buf in
   (match res with
   | No_error -> Buffer.add_string buf "No error\n"
   | Format_error x ->
-      List.iter
-        (fun (pos, msg) ->
-          Buffer.add_string buf (Fmt.str "Line %d: %s\n" pos msg))
-        x;
-      Buffer.add_string buf
-        (Fmt.str "%d formatting errors found. Parsing aborted.\n"
-           (List.length x))
+      List.iter (fun (pos, msg) -> Fmt.pf ppf "Line %d: %s\n" pos msg) x;
+      Fmt.pf ppf "%d formatting errors found. Parsing aborted.\n"
+        (List.length x)
   | No_time_found s ->
-      Buffer.add_string buf
-        (Fmt.str
-           "No time entry found. Each KR must be followed by '- @... (x days)\n\
-            Error: %s\n"
-           s)
+      Fmt.pf ppf
+        "No time entry found. Each KR must be followed by '- @... (x days)\n\
+         Error: %s\n"
+        s
   | Invalid_time s ->
-      Buffer.add_string buf
-        (Fmt.str
-           "Invalid time entry found. Format is '- @eng1 (x days), @eng2 (x \
-            days)'\n\
-            Error: %s\n"
-           s)
+      Fmt.pf ppf
+        "Invalid time entry found. Format is '- @eng1 (x days), @eng2 (x days)'\n\
+         Error: %s\n"
+        s
   | Multiple_time_entries s ->
-      Buffer.add_string buf
-        (Fmt.str
-           "KR with multiple time entries found. Only one time entry should \
-            follow immediately after the KR.\n\
-            Error: %s\n"
-           s)
+      Fmt.pf ppf
+        "KR with multiple time entries found. Only one time entry should \
+         follow immediately after the KR.\n\
+         Error: %s\n"
+        s
   | No_work_found s ->
-      Buffer.add_string buf
-        (Fmt.str
-           "No work items found. This may indicate an unreported parsing \
-            error. Remove the KR if it is without work.\n\
-            Error: %s\n"
-           s)
+      Fmt.pf ppf
+        "No work items found. This may indicate an unreported parsing error. \
+         Remove the KR if it is without work.\n\
+         Error: %s\n"
+        s
   | No_title_found s ->
-      Buffer.add_string buf
-        (Fmt.str
-           "The input should contain at least one title (starting with #)\n\
-            Error: %s\n"
-           s)
+      Fmt.pf ppf
+        "The input should contain at least one title (starting with #)\n\
+         Error: %s\n"
+        s
   | No_KR_ID_found s ->
-      Buffer.add_string buf
-        (Fmt.str
-           "No KR ID found. KRs should be in the format \"This is a KR \
-            (PLAT123)\", where PLAT123 is the KR ID. For KRs that don't have \
-            an ID yet, use \"New KR\".\n\
-            Error: %s\n"
-           s));
+      Fmt.pf ppf
+        "No KR ID found. KRs should be in the format \"This is a KR \
+         (PLAT123)\", where PLAT123 is the KR ID. For KRs that don't have an \
+         ID yet, use \"New KR\".\n\
+         Error: %s\n"
+        s);
   Buffer.contents buf
 
-(* Check a single line for formatting errors returning 
+(* Check a single line for formatting errors returning
    a list of error messages with the position *)
 let check_line line pos =
   List.fold_left
