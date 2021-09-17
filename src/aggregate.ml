@@ -362,7 +362,7 @@ let process_okr_block t ht hd tl =
           (fun xs ->
             let okr_list = List.concat (List.map block_okr xs) in
             if
-              List.length t.ignore_sections == 0
+              List.length t.ignore_sections = 0
               || (* ignore if proj or obj is in ignore_sections *)
               (not
                  (List.mem
@@ -374,7 +374,7 @@ let process_okr_block t ht hd tl =
                       t.ignore_sections)
             then
               if
-                List.length t.include_sections == 0
+                List.length t.include_sections = 0
                 (* only include if proj or obj is in include_sections *)
                 || List.mem
                      (String.uppercase_ascii t.current_proj)
@@ -518,12 +518,12 @@ let of_weekly okr_list =
   in
 
   (* Some basic sanity checking *)
-  if List.length work == 0 then
+  if List.length work = 0 then
     raise
       (No_work_found (Fmt.str "KR with ID %s is without work items" !okr_kr_id))
   else ();
 
-  if String.length (String.trim !okr_kr_id) == 0 then
+  if String.length (String.trim !okr_kr_id) = 0 then
     raise
       (No_KR_ID_found
          (Fmt.str "No KR ID found for \"%s\" (under objective %s)" !okr_kr_title
@@ -531,8 +531,8 @@ let of_weekly okr_list =
   else ();
 
   if
-    String.length (String.trim !okr_proj) == 0
-    || String.length (String.trim !okr_obj) == 0
+    String.length (String.trim !okr_proj) = 0
+    || String.length (String.trim !okr_obj) = 0
   then
     raise
       (No_title_found
@@ -564,7 +564,7 @@ let by_engineer ?(include_krs = []) okrs =
   List.iter
     (fun e ->
       (* only proceed if include_krs is empty or has a match *)
-      if List.length include_krs == 0 || List.mem e.kr_id uppercase_include_krs
+      if List.length include_krs = 0 || List.mem e.kr_id uppercase_include_krs
       then
         Hashtbl.iter (fun k w -> ht_add_or_sum result k w) e.time_per_engineer
       else ()) (* skip this KR *)
