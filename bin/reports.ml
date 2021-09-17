@@ -44,7 +44,7 @@ let report_team_md ?(include_krs = []) ?(show_time = true)
   List.iter
     (fun e ->
       (* only proceed if include_krs is empty or has a match *)
-      if List.length include_krs == 0 || List.mem e.kr_id uppercase_include_krs
+      if List.length include_krs = 0 || List.mem e.kr_id uppercase_include_krs
       then (
         if e.project <> !c_project then (
           Printf.printf "\n# %s\n" e.project;
