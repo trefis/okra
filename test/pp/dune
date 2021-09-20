@@ -1,0 +1,14 @@
+(executable
+ (name test)
+ (modules test)
+ (libraries okra))
+
+(rule
+ (deps (:file eng1.md))
+ (action
+  (with-stdout-to eng1.md.pp (run ./test.exe %{file}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff eng1.md eng1.md.pp)))
