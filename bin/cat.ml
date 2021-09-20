@@ -97,9 +97,12 @@ let run conf =
     Okra.Aggregate.process ~ignore_sections:conf.ignore_sections
       ~include_sections:conf.include_sections md
   in
-  Reports.report_team_md ~show_time:conf.show_time
-    ~show_time_calc:conf.show_time_calc ~show_engineers:conf.show_engineers
-    ~include_krs:conf.include_krs okrs
+  let pp ppf okrs =
+    Okra.Reports.pp ~show_time:conf.show_time
+      ~show_time_calc:conf.show_time_calc ~show_engineers:conf.show_engineers
+      ~include_krs:conf.include_krs ppf okrs
+  in
+  Fmt.pr "%a" pp okrs
 
 let term =
   let cat show_time show_time_calc show_engineers include_krs ignore_sections
