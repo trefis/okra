@@ -41,7 +41,6 @@ module Weekly : sig
   type t = elt list list
   type table = (string, t) Hashtbl.t
 
-  val pp : t Fmt.t
   val filter : t -> string -> t
 end
 
