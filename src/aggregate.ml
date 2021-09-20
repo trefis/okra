@@ -446,7 +446,7 @@ let of_weekly okr_list =
       | Proj s -> okr_proj := s
       | O s -> okr_obj := s
       | KR_title s -> okr_kr_title := s
-      | KR_id s -> okr_kr_id := String.uppercase_ascii s
+      | KR_id s -> okr_kr_id := s
       | Counter x -> okr_counter := x
       | _ -> ())
     (List.hd okr_list);
