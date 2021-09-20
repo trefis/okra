@@ -18,6 +18,9 @@
 
 open Okra.Aggregate
 
+let pp_days ppf d =
+  if d = 1. then Fmt.string ppf "1 day" else Fmt.pf ppf "%.0f days" d
+
 (** [report_team_md okrs] outputs a team report to stdout.
 
     [include_krs] only includes this list of KR IDs. Note that this will ignore
@@ -41,21 +44,23 @@ let report_team_md ?(include_krs = []) ?(show_time = true)
   let c_objective = ref "" in
   let c_kr_id = ref "" in
   let c_kr_title = ref "" in
+  let ppf = Format.std_formatter in
+  let pf fmt = Fmt.pf ppf fmt in
   List.iter
     (fun e ->
       (* only proceed if include_krs is empty or has a match *)
       if List.length include_krs = 0 || List.mem e.kr_id uppercase_include_krs
       then (
         if e.project <> !c_project then (
-          Printf.printf "\n# %s\n" e.project;
+          pf "\n# %s\n" e.project;
           c_project := e.project)
         else ();
         if e.objective <> !c_objective then (
-          Printf.printf "\n## %s\n" e.objective;
+          pf "\n## %s\n" e.objective;
           c_objective := e.objective)
         else ();
         if e.kr_id <> !c_kr_id || e.kr_title <> !c_kr_title then (
-          Printf.printf "\n- %s (%s)\n" e.kr_title e.kr_id;
+          pf "\n- %s (%s)\n" e.kr_title e.kr_id;
           c_kr_title := e.kr_title;
           c_kr_id := e.kr_id)
         else ();
@@ -63,29 +68,32 @@ let report_team_md ?(include_krs = []) ?(show_time = true)
           if show_time then
             if show_time_calc then (
               (* show time calc + engineers *)
-              List.iter (fun s -> Printf.printf "    - + %s" s) e.time_entries;
-              Printf.printf "    - = ";
+              List.iter (pf "  - + %s") e.time_entries;
+              pf "  - = ";
               Hashtbl.iter
-                (fun s v -> Printf.printf "@%s (%.2f days) " s v)
+                (fun e d -> pf "@%s (%a) " e pp_days d)
                 e.time_per_engineer;
-              Printf.printf "\n")
+              pf "\n")
             else (
               (* show total time for each engineer *)
-              Printf.printf "    - ";
+              pf "  - ";
               let first = ref true in
               Hashtbl.iter
                 (fun s v ->
-                  if not !first then Printf.printf ", " else first := false;
-                  Printf.printf "@%s (%.2f days)" s v)
+                  if not !first then pf ", " else first := false;
+                  pf "@%s (%a)" s pp_days v)
                 e.time_per_engineer;
-              Printf.printf "\n")
+              pf "\n")
           else (
             (* only show engineers, no time *)
-            Printf.printf "    - ";
-            Hashtbl.iter (fun s _ -> Printf.printf "@%s " s) e.time_per_engineer;
-            Printf.printf "\n")
+            Hashtbl.iter (fun s _ -> pf "  - @%s " s) e.time_per_engineer;
+            pf "\n")
         else ();
         (* don't show time or engineers *)
-        List.iter (fun s -> Printf.printf "    - %s" s) e.work)
+        List.iter
+          (fun lines ->
+            let work = String.concat "\n    " lines in
+            pf "  - %s\n" work)
+          e.work)
       else () (* skip this KR *))
     (List.sort Okra.Aggregate.compare v)

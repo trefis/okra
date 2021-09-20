@@ -41,7 +41,7 @@ type t = {
   kr_id : string;
   time_entries : string list;
   time_per_engineer : (string, float) Hashtbl.t;
-  work : string list;
+  work : string list list;
 }
 
 let compare a b =
@@ -75,7 +75,7 @@ module Weekly = struct
     | KR of string (* Full name of KR, with ID *)
     | KR_id of string (* ID of KR *)
     | KR_title of string (* Title without ID, tech lead *)
-    | Work of string list (* List of work items *)
+    | Work of string list list (* List of work items, each split into lines *)
     | Time of string (* Time entry *)
     | Counter of int
   (* Increasing counter to be able to sort multiple entries by time *)
@@ -118,7 +118,7 @@ module Weekly = struct
             (fun el ->
               match el with
               | Time t_ ->
-                  pf "    - + %s" t_;
+                  pf "  - + %s" t_;
                   (* todo this shouldn't happen when printing, but earlier *)
                   (* split on @, then extract first word and any float after *)
                   let t_split = Str.split (Str.regexp "@+") t_ in
@@ -144,7 +144,7 @@ module Weekly = struct
         okr_list
     in
     (* Sum and print time *)
-    pf "    - = ";
+    pf "  - = ";
     List.iter
       (fun key ->
         let sum =
@@ -153,22 +153,22 @@ module Weekly = struct
             0.0
             (Hashtbl.find_all ht_t key)
         in
-        pf "@%s (%.2f days) " key sum)
+        pf "@%s (%.0f days) " key sum)
       (hashtbl_keys ht_t);
     pf "\n";
     (* Just print work *)
-    let _ =
-      List.map
-        (fun elements ->
-          List.iter
-            (fun el ->
-              match el with
-              | Work w -> List.iter (fun w_ -> pf "    - %s" w_) w
-              | _ -> ())
-            elements)
-        okr_list
-    in
-    ()
+    List.iter
+      (fun elements ->
+        List.iter
+          (fun el ->
+            match el with
+            | Work w ->
+                List.iter
+                  (fun lines -> pf "  - %s\n" (String.concat "    " lines))
+                  w
+            | _ -> ())
+          elements)
+      okr_list
 end
 
 open Weekly
@@ -227,7 +227,7 @@ let pp ppf okr =
     | KR_id s -> pf "KR id: %s" s
     | KR_title s -> pf "KR title: %s" s
     | Work w ->
-        let pp ppf e = Fmt.pf ppf "W: %s" e in
+        let pp ppf e = Fmt.pf ppf "W: %a" Fmt.(Dump.list string) e in
         Fmt.list ~sep:(Fmt.unit ", ") pp ppf w
     | Time _ -> pf "Time: <not shown>"
     | Counter c -> pf "Cnt: %d" c
@@ -311,9 +311,7 @@ let block_okr = function
         in
         let work_items =
           Work
-            (List.map
-               (fun xs -> String.concat "" (List.concat (List.map block xs)))
-               (List.tl bls))
+            (List.map (fun xs -> List.concat (List.map block xs)) (List.tl bls))
         in
         [ Time time_s; work_items ]
       else []
@@ -507,14 +505,25 @@ let of_weekly okr_list =
 
   (* Add work items in order, concat all the lists *)
   let work =
-    List.concat
-      (List.map
-         (fun elements ->
-           List.concat
-             (List.map
-                (fun el -> match el with Work w -> w | _ -> [])
-                elements))
-         okr_list)
+    (* Get all work items *)
+    let words =
+      List.concat
+        (List.map
+           (fun elements ->
+             List.concat
+               (List.map
+                  (fun el -> match el with Work w -> w | _ -> [])
+                  elements))
+           okr_list)
+    in
+    (* Order them by lines *)
+    List.map
+      (fun words ->
+        let para = String.concat "" words in
+        let lines = String.split_on_char '\n' para in
+        let lines = List.filter (( <> ) "") lines in
+        lines)
+      words
   in
 
   (* Some basic sanity checking *)

@@ -30,7 +30,7 @@ type t = {
   kr_id : string;
   time_entries : string list;
   time_per_engineer : (string, float) Hashtbl.t;
-  work : string list;
+  work : string list list;
 }
 (** TODO: make it abstract *)
 
