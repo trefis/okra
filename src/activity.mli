@@ -17,7 +17,9 @@
 type t
 (** The type for your weekly activity *)
 
-val make : projects:string list -> Get_activity.Contributions.t -> t
+type project = { title : string; items : string list }
+
+val make : projects:project list -> Get_activity.Contributions.t -> t
 (** [make_activity ~projects activites] builds a new weekly activity *)
 
 val pp : t Fmt.t
