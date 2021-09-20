@@ -119,6 +119,7 @@ $ okra generate --week=37 --year=2021 --no-activity --conf=conf.projects.yaml
   - @<USERNAME> (<X> days)
   - Meetings with people
   - Updating the documentation
+
 - Make a web interface for Okra (OKR2)
   - @<USERNAME> (<X> days)
   - Work Item 1

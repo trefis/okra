@@ -100,7 +100,12 @@ let run cal projects token no_activity =
 
 let term =
   let make_with_file cal okra_file token_file no_activity =
-    let token = get_or_error @@ Get_activity.Token.load token_file in
+    let token =
+      (* If [no_activity] is specfied then the token will not be used, don't try
+         to load the file in that case *)
+      if no_activity then ""
+      else get_or_error @@ Get_activity.Token.load token_file
+    in
     let okra_conf =
       match get_or_error @@ Bos.OS.File.exists (Fpath.v okra_file) with
       | false -> Conf.default

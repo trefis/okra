@@ -26,7 +26,7 @@ let pp_last_week username ppf projects =
     Fmt.(pf ppf "%a" (list (fun ppf s -> Fmt.pf ppf "  - %s" s))) t
   in
   let pp_project ppf { title; items } =
-    Fmt.pf ppf "- %s\n  - @%s (<X> days)\n%a" title username pp_items items
+    Fmt.pf ppf "- %s\n  - @%s (<X> days)\n%a@." title username pp_items items
   in
   Fmt.pf ppf "%a" Fmt.(list ~sep:(cut ++ cut) pp_project) projects
 
@@ -73,7 +73,6 @@ let pp ppf { projects; activity = { username; activity } } =
 # Last Week
 
 %a
-
 # Activity (move these items to last week)
 
 %a
