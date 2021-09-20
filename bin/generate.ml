@@ -70,13 +70,15 @@ let get_or_error = function
 module Fetch = Get_activity.Contributions.Fetch (Cohttp_lwt_unix.Client)
 
 let run cal projects token =
-  let period = Calendar.github_week cal in
+  let ((from, to_) as period) = Calendar.github_week cal in
+  let week = Calendar.week cal in
   let activity =
     Lwt_main.run (Fetch.exec ~period ~token)
     |> Get_activity.Contributions.of_json ~from:(fst period)
   in
+  let header = Fmt.str "%s week %i: %s -- %s" activity.username week from to_ in
   let activity = Activity.make ~projects activity in
-  Fmt.pr "%a" Activity.pp activity
+  Fmt.pr "%s\n\n%a" header Activity.pp activity
 
 let term =
   let make_with_file cal okra_file token_file =
