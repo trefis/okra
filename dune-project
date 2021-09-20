@@ -13,6 +13,7 @@
  (description "An executable to be used for report parsing")
  (depends
   (alcotest :with-test)
+  (mdx :with-test)
   okra
   cmdliner
   bos
@@ -30,3 +31,4 @@
   get-activity
   calendar
   (omd (>= 2.0))))
+(using mdx 0.1)
