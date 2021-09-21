@@ -44,9 +44,14 @@ let monday_of_week week year =
       Cal.Date.from_day_of_year year doy
   | d -> Cal.Date.from_day_of_year year d
 
+let range_of_week =
+  let six_days = Cal.Date.Period.make 0 0 6 in
+  fun t ->
+    let monday = monday_of_week t.week t.year in
+    (monday, Cal.Date.add monday six_days)
+
 let github_week t =
-  let monday = monday_of_week t.week t.year in
-  let sunday = Cal.Date.add monday (Cal.Date.Period.make 0 0 6) in
+  let monday, sunday = range_of_week t in
   let sunday =
     (* Some people might work on the sunday... *)
     Cal.Date.to_unixfloat sunday +. (day -. 1.) |> Cal.from_unixfloat

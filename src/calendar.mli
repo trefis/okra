@@ -29,6 +29,9 @@ val make : week:int -> year:int -> t
 val this_week : unit -> t
 (** [this_week ()] gets the current week and year *)
 
+val range_of_week : t -> CalendarLib.Date.t * CalendarLib.Date.t
+(** [range_of_week t] returns the start and end dates of the week *)
+
 val github_week : t -> string * string
 (** [github_week t] converts [t] into floats as strings ready to be passed to
     the Github API *)

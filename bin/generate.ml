@@ -70,13 +70,18 @@ let get_or_error = function
 module Fetch = Get_activity.Contributions.Fetch (Cohttp_lwt_unix.Client)
 
 let run cal projects token =
-  let ((from, to_) as period) = Calendar.github_week cal in
+  let period = Calendar.github_week cal in
   let week = Calendar.week cal in
   let activity =
     Lwt_main.run (Fetch.exec ~period ~token)
     |> Get_activity.Contributions.of_json ~from:(fst period)
   in
-  let header = Fmt.str "%s week %i: %s -- %s" activity.username week from to_ in
+  let from, to_ = Calendar.range_of_week cal in
+  let format_date f = CalendarLib.Printer.Date.fprint "%0Y/%0m/%0d" f in
+  let header =
+    Fmt.str "%s week %i: %a -- %a" activity.username week format_date from
+      format_date to_
+  in
   let activity = Activity.make ~projects activity in
   Fmt.pr "%s\n\n%a" header Activity.pp activity
 
