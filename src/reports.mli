@@ -1,5 +1,5 @@
 (*
- * Copyright (c) 2021 Magnus Skjegstad
+ * Copyright (c) 2021 Magnus Skjegstad <magnus@skjegstad.com>
  * Copyright (c) 2021 Thomas Gazagnaire <thomas@gazagnaire.org>
  * Copyright (c) 2021 Patrick Ferris <pf341@patricoferris.com>
  *
@@ -16,7 +16,22 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-module Aggregate = Aggregate
-module Activity = Activity
-module Calendar = Calendar
-module Lint = Lint
+val pp :
+  ?include_krs:string list ->
+  ?show_time:bool ->
+  ?show_time_calc:bool ->
+  ?show_engineers:bool ->
+  Aggregate.Weekly.table Fmt.t
+(** [pp] pretty-print weekly team reports.
+
+    [include_krs] only includes this list of KR IDs. Note that this will ignore
+    empty KR IDs or KRs marked as "NEW KR" unless specified in the list. If the
+    list is empty, all KRs are returned.
+
+    When [show_time_calc] is set, an extra line will be added to the output each
+    time the same entry is included in the report with a sum at the end. This is
+    useful for showing the intermediate steps when aggreating multiple reports
+    that contain the same KR.
+
+    [show_time] shows the time entries [show_engineers] shows the list of
+    engineers *)

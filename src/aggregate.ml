@@ -204,19 +204,28 @@ let rec inline = function
   | Html _ -> [ "**html-ignored**" ]
   | Image _ -> [ "**img ignored**" ]
 
+let insert_indent l =
+  let rec aux = function
+    | [] -> []
+    | "\n" :: t -> "\n" :: aux t
+    | x :: t -> ("  " ^ x) :: aux t
+  in
+  match l with [] -> [] | h :: t -> h :: aux t
+
 let rec block = function
   | Paragraph (_, x) -> inline x @ [ "\n" ]
-  | List (_, _, _, bls) ->
-      List.concat
-        (List.map
-           (fun xs -> "        - " :: List.concat (List.map block xs))
-           bls)
+  | List (_, _, _, bls) -> List.map list_items bls
   | Blockquote (_, x) -> "> " :: List.concat (List.map block x)
   | Thematic_break _ -> [ "*thematic-break-ignored*" ]
   | Heading (_, level, text) -> String.make level '#' :: inline text @ [ "\n" ]
   | Code_block (_, info, _) -> [ "```"; info; "```" ]
   | Html_block _ -> [ "*html-ignored*" ]
   | Definition_list _ -> [ "*def-list-ignored*" ]
+
+and list_items items =
+  let items = List.map block items in
+  let items = List.concat @@ List.map insert_indent items in
+  String.concat "" ("- " :: items)
 
 let block_okr = function
   | Paragraph (_, x) -> (
