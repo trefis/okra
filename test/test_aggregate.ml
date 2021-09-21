@@ -17,7 +17,7 @@
 let aggregate_by_engineer f =
   let ic = open_in f in
   let omd = Omd.of_channel ic in
-  let p = Okra.Aggregate.process omd in
+  let p = Okra.Aggregate.of_makdown omd in
   let res = Okra.Aggregate.by_engineer p in
   close_in ic;
   res
