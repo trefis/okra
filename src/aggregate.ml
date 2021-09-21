@@ -82,21 +82,6 @@ module Weekly = struct
 
   type t = elt list list
   type table = (string, t) Hashtbl.t
-
-  let has_proj okr_list proj =
-    let m =
-      List.find_all
-        (fun f ->
-          match f with
-          | Proj s ->
-              Printf.printf "%s=%s\n" s proj;
-              String.compare s proj = 0
-          | _ -> false)
-        okr_list
-    in
-    List.length m > 0
-
-  let filter okr_ll proj = List.filter (fun f -> has_proj f proj) okr_ll
 end
 
 open Weekly
@@ -507,37 +492,3 @@ let by_engineer ?(include_krs = []) okrs =
       else ()) (* skip this KR *)
     v;
   result
-
-module Unused = struct
-  let _tim_re = Str.regexp "@\\([a-zA-Z0-9]+\\) (\\([0-9.]+\\) days?)$"
-  (* @[github-handle] ([float] day/days) *)
-
-  let _tim_split_re = Str.regexp " ?, ?"
-  (* Split on , surrounded by zero or more whitespace *)
-
-  let _is_prefix prefix s =
-    String.length s >= String.length prefix
-    &&
-    let prefix = String.uppercase_ascii prefix in
-    let s = String.uppercase_ascii s in
-    String.equal prefix (String.sub s 0 (String.length prefix))
-
-  let _get_proj_list store =
-    (* iterate over ht *)
-    let keys = hashtbl_keys store in
-    List.sort_uniq String.compare
-      (List.concat
-         (List.map
-            (fun key ->
-              let okr_list = List.concat (Hashtbl.find store key) in
-              List.concat
-                (List.map
-                   (fun el -> match el with Proj s -> [ s ] | _ -> [])
-                   okr_list))
-            keys))
-
-  let _parse_obj s =
-    match Str.string_match obj_re s 0 with
-    | false -> None
-    | true -> Some (Str.matched_group 1 s, Str.matched_group 2 s)
-end
