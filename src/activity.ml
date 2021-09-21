@@ -14,9 +14,19 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
+type project = { title : string; items : string list }
+
+let title { title; _ } = title
+
+type t = { projects : project list; activity : Get_activity.Contributions.t }
+
 let pp_last_week username ppf projects =
-  let pp_project ppf t =
-    Fmt.pf ppf "- %s\n  - @%s (<X> days)\n  - Work Item 1" t username
+  let pp_items ppf t =
+    let t = if List.length t = 0 then [ "Work Item 1" ] else t in
+    Fmt.(pf ppf "%a" (list (fun ppf s -> Fmt.pf ppf "  - %s" s))) t
+  in
+  let pp_project ppf { title; items } =
+    Fmt.pf ppf "- %s\n  - @%s (<X> days)\n%a@." title username pp_items items
   in
   Fmt.pf ppf "%a" Fmt.(list ~sep:(cut ++ cut) pp_project) projects
 
@@ -52,8 +62,6 @@ let pp_activity ppf activity =
   in
   Fmt.pf ppf "%a" Fmt.(list pp_binding) bindings
 
-type t = { projects : string list; activity : Get_activity.Contributions.t }
-
 let make ~projects activity = { projects; activity }
 
 let pp ppf { projects; activity = { username; activity } } =
@@ -65,10 +73,10 @@ let pp ppf { projects; activity = { username; activity } } =
 # Last Week
 
 %a
-
 # Activity (move these items to last week)
 
 %a
 |}
     Fmt.(list (fun ppf s -> Fmt.pf ppf "- %s" s))
-    projects (pp_last_week username) projects pp_activity activity
+    (List.map title projects) (pp_last_week username) projects pp_activity
+    activity

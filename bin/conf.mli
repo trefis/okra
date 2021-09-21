@@ -20,7 +20,7 @@ type t
 val default : t
 (** A default configuration *)
 
-val projects : t -> string list
+val projects : t -> Okra.Activity.project list
 (** A user's list of activer projects *)
 
 val locations : t -> string list

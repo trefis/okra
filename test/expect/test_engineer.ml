@@ -18,7 +18,9 @@ open Okra
 
 let activity =
   let open Get_activity.Contributions in
-  let projects = [ "Make okra great (OKRA1)" ] in
+  let projects =
+    [ Activity.{ title = "Make okra great (OKRA1)"; items = [] } ]
+  in
   let items : item list =
     [
       {

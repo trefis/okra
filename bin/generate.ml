@@ -42,6 +42,15 @@ let calendar_term : Calendar.t Term.t =
   in
   Term.(const make $ week_term $ year_term)
 
+let no_activity =
+  Arg.value
+  @@ Arg.flag
+  @@ Arg.info
+       ~doc:
+         "The --no-activity flag will disable any attempt to generate activity \
+          reports from Github"
+       ~docv:"NO-ACTIVITY" [ "no-activity" ]
+
 (* Get activity configuration *)
 let home =
   match Sys.getenv_opt "HOME" with
@@ -69,12 +78,16 @@ let get_or_error = function
 
 module Fetch = Get_activity.Contributions.Fetch (Cohttp_lwt_unix.Client)
 
-let run cal projects token =
+let run cal projects token no_activity =
   let period = Calendar.github_week cal in
   let week = Calendar.week cal in
   let activity =
-    Lwt_main.run (Fetch.exec ~period ~token)
-    |> Get_activity.Contributions.of_json ~from:(fst period)
+    if no_activity then
+      Get_activity.Contributions.
+        { username = "<USERNAME>"; activity = Repo_map.empty }
+    else
+      Lwt_main.run (Fetch.exec ~period ~token)
+      |> Get_activity.Contributions.of_json ~from:(fst period)
   in
   let from, to_ = Calendar.range_of_week cal in
   let format_date f = CalendarLib.Printer.Date.fprint "%0Y/%0m/%0d" f in
@@ -86,16 +99,22 @@ let run cal projects token =
   Fmt.pr "%s\n\n%a" header Activity.pp activity
 
 let term =
-  let make_with_file cal okra_file token_file =
-    let token = get_or_error @@ Get_activity.Token.load token_file in
+  let make_with_file cal okra_file token_file no_activity =
+    let token =
+      (* If [no_activity] is specfied then the token will not be used, don't try
+         to load the file in that case *)
+      if no_activity then ""
+      else get_or_error @@ Get_activity.Token.load token_file
+    in
     let okra_conf =
       match get_or_error @@ Bos.OS.File.exists (Fpath.v okra_file) with
       | false -> Conf.default
       | true -> get_or_error @@ Conf.load okra_file
     in
-    run cal (Conf.projects okra_conf) token
+    run cal (Conf.projects okra_conf) token no_activity
   in
-  Term.(const make_with_file $ calendar_term $ Conf.cmdliner $ token)
+  Term.(
+    const make_with_file $ calendar_term $ Conf.cmdliner $ token $ no_activity)
 
 let cmd =
   let info =

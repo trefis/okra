@@ -76,6 +76,8 @@ projects:
   - "Improve OKRA (OKRA1)"
 ```
 
+More information is provided at the bottom of the README.
+
 ## Aggregating reports
 
 `okra cat` can be used to aggregate weekly engineer or team reports in a single report. The tool will attempt to group data by project, objective and KR if these match.
@@ -239,3 +241,15 @@ locations:
   - "/path/to/admin/dir1"
   - "/path/to/admin/dir2"
 ```
+
+You can also provide default work items for your projects which are particularly useful for recurring tasks (e.g. meetings). For example: 
+
+```yaml
+projects:
+  - title: "Make okra great (Plat123)"
+    items: 
+      - "Meeting with @MagnusS, @samoht"
+      - "Documenting the tool"
+```
+
+There are [mdx tests](test/bin/README.md) which show the output from such a configuration file.

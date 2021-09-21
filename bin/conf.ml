@@ -13,11 +13,46 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
+open Okra
 
-type t = { projects : string list; locations : string list }
+let default_project = { Activity.title = "TODO ADD KR (ID)"; items = [] }
 
-let default = { projects = [ "TODO ADD KR (ID)" ]; locations = [] }
+type t = { projects : Activity.project list; locations : string list }
+
+let default = { projects = [ default_project ]; locations = [] }
 let conf_err s = Error (`Msg (Fmt.str "Okra Conf Error: %s" s))
+
+let projects_of_yaml t =
+  let open Rresult in
+  let open Yaml.Util in
+  let map (f : Yaml.value -> 'a) = function
+    | `A lst -> List.map f lst
+    | _ -> raise (Yaml.Util.Value_error "Expected a list to map over")
+  in
+  let project_of_yaml = function
+    | `String title -> { default_project with title }
+    | `O assoc -> (
+        let title = List.assoc_opt "title" assoc |> Option.map to_string_exn in
+        let items =
+          List.assoc_opt "items" assoc |> Option.map (map to_string_exn)
+        in
+        match (title, items) with
+        | Some title, Some items -> { title; items }
+        | Some title, None -> { default_project with title }
+        | _, _ ->
+            raise
+              (Value_error "expected a list of projects with at least a title"))
+    | _ ->
+        raise
+          (Value_error
+             "project description must be a list of strings or { title; items }")
+  in
+  match t with
+  | None -> Ok [ default_project ]
+  | Some (`A v) -> (
+      try Ok (List.map project_of_yaml v)
+      with Yaml.Util.Value_error s -> conf_err s)
+  | Some _ -> conf_err "Expected a list"
 
 let of_yaml yaml =
   let open Rresult in
@@ -28,7 +63,7 @@ let of_yaml yaml =
         try Ok (List.map f v) with Yaml.Util.Value_error s -> conf_err s)
     | Some _ -> conf_err "Expected a list"
   in
-  find "projects" yaml >>= map_option to_string_exn >>= fun projects ->
+  find "projects" yaml >>= projects_of_yaml >>= fun projects ->
   find "locations" yaml >>= map_option to_string_exn >>= fun locations ->
   Ok { projects; locations }
 
