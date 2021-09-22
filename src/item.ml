@@ -107,12 +107,15 @@ let rec pp = function
   | Paragraph t -> pp_inline t
   | List (Ordered (i, c), y) ->
     separate_map hardline
-      (fun e -> stringf "%d%c " i c ^^ nest 2 (separate_map hardline pp e)) y
+      (fun e -> stringf "%d%c " i c ^^ pp_list e) y
   | List (Bullet c, y) ->
     separate_map hardline
-      (fun e -> stringf "%c " c ^^ nest 2 (separate_map hardline pp e)) y
+      (fun e -> stringf "%c " c ^^ pp_list e) y
   | Blockquote l -> group (string "> " ^^ concat_map pp l)
   | Code_block (x, y) ->
     string "```" ^^ string x ^^ hardline ^^
-    arbitrary_string y ^^ hardline ^^ 
+    arbitrary_string y ^^
     string "```"
+
+and pp_list lst =
+  nest 2 (separate_map (twice hardline) pp lst)
